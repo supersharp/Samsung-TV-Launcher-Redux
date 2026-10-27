@@ -109,6 +109,14 @@
         return w ? w.title : 'Photo';
     }
 
+    function layoutSummary() {
+        var p = Prefs.get().layout;
+        var top = p.top === 'inputs' ? 'Devices top' : 'Apps top';
+        var clock = p.showClock === false ? 'Clock hidden'
+            : (p.clockSide === 'right' ? 'Clock right' : 'Clock left');
+        return top + ' · ' + clock;
+    }
+
     function overviewEntries() {
         var a = Prefs.get().appearance;
         var shown = Home.inputs().filter(function (i) { return !i.hidden; }).length;
@@ -118,6 +126,7 @@
             { label: 'Connected Devices', value: shown + ' on Home', run: function () { UI.show('consoles'); } },
             { label: 'Appearance', value: Appearance.font(a.font).label + ' · ' + (a.clock === '12h' ? '12-hour' : '24-hour'), run: function () { UI.show('appearance'); } },
             { label: 'Navigation sound', value: soundSummary(), run: function () { UI.show('sound-settings'); } },
+            { label: 'Home Layout', value: layoutSummary(), run: function () { UI.show('home-layout'); } },
             { label: 'Weather', value: weatherSummary(), run: function () { UI.show('weather'); } },
             { label: 'Screen saver', value: screensaverSummary(), run: function () { UI.show('screensaver-settings'); } },
             { label: 'Samsung Home', value: 'Smart Hub and TV settings', run: openSamsungHome },
@@ -324,6 +333,75 @@
         }
         renderBackground({ back: true });
         UI.refresh();
+    }
+
+    // ---------- Home Layout
+
+    var LAYOUT_SIZES = [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
+
+    function setLayout(key, value, message) {
+        Prefs.get().layout[key] = value;
+        Prefs.save();
+        Home.applyLayout();
+        UI.show('home-layout', { back: true });
+        UI.toast(message);
+    }
+
+    function layoutMenu(title, key, options) {
+        var p = Prefs.get().layout;
+        UI.menu(title, options.map(function (o) {
+            return {
+                label: o[1],
+                checked: p[key] === o[0],
+                run: function () { setLayout(key, o[0], title + ': ' + o[1]); }
+            };
+        }));
+    }
+
+    function homeLayoutEntries() {
+        var p = Prefs.get().layout;
+        var size = function (v) {
+            return v === 'small' ? 'Small' : (v === 'large' ? 'Large' : 'Medium');
+        };
+        return [
+            {
+                label: 'App icon size',
+                value: size(p.appSize),
+                run: function () { layoutMenu('App icon size', 'appSize', LAYOUT_SIZES); }
+            },
+            {
+                label: 'Connected device icon size',
+                value: size(p.inputSize),
+                run: function () { layoutMenu('Connected device icon size', 'inputSize', LAYOUT_SIZES); }
+            },
+            {
+                label: 'Row on top',
+                value: p.top === 'inputs' ? 'Connected Devices' : 'Apps',
+                run: function () {
+                    layoutMenu('Row on top', 'top', [['apps', 'Apps'], ['inputs', 'Connected Devices']]);
+                }
+            },
+            {
+                label: 'Clock & settings',
+                value: p.clockSide === 'right' ? 'Clock right · Gear left' : 'Clock left · Gear right',
+                run: function () {
+                    layoutMenu('Clock & settings', 'clockSide', [
+                        ['left', 'Clock left · Gear right'],
+                        ['right', 'Clock right · Gear left']
+                    ]);
+                }
+            },
+            {
+                label: 'Clock',
+                value: p.showClock ? 'Shown' : 'Hidden',
+                run: function () { layoutMenu('Clock', 'showClock', [[true, 'Shown'], [false, 'Hidden']]); }
+            },
+            {
+                label: 'Weather',
+                value: p.showWeather ? 'Shown' : 'Hidden',
+                run: function () { layoutMenu('Weather', 'showWeather', [[true, 'Shown'], [false, 'Hidden']]); }
+            }
+        ];
     }
 
     // ---------- Appearance
@@ -1144,6 +1222,7 @@
         registerList('settings', overviewEntries,
             [['OK', 'Change'], ['◀ ▶', 'Switch column'], ['Back', 'Home']], true);
         registerList('advanced', advancedEntries, [['OK', 'Run'], ['Back', 'Settings']]);
+        registerList('home-layout', homeLayoutEntries, [['OK', 'Change'], ['Back', 'Settings']]);
         renderWeatherPage = registerList('weather', weatherEntries, [['OK', 'Change'], ['Back', 'Settings']]);
         Weather.onUpdate(function () {
             if (renderWeatherPage && UI.isVisible('weather')) {
@@ -1160,7 +1239,7 @@
             onShow: renderBackground,
             onFocus: scrollToBackgroundBlock,
             activate: activateBackground,
-            hints: [['OK', 'Select'], ['Back', 'Settings']]
+            hints: [['OK', 'Select'], ['▲ ▼', 'Scroll'], ['Back', 'Settings']]
         });
 
         UI.register('appearance', {
@@ -1185,7 +1264,7 @@
             onShow: renderScreensaver,
             onFocus: scrollToBlock,
             activate: activateScreensaver,
-            hints: [['OK', 'Select'], ['Back', 'Settings']]
+            hints: [['OK', 'Select'], ['▲ ▼', 'Scroll'], ['Back', 'Settings']]
         });
 
         UI.register('homeapps', {

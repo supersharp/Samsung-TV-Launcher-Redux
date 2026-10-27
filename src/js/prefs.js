@@ -54,6 +54,14 @@
                 font: 'manrope',        // see Appearance.FONTS
                 names: 'always'         // app names under tiles: 'always' | 'focused' | 'never'
             },
+            layout: {
+                appSize: 'medium',      // 'small' | 'medium' | 'large'
+                inputSize: 'medium',    // 'small' | 'medium' | 'large'
+                top: 'apps',            // 'apps' | 'inputs'
+                clockSide: 'left',      // 'left' | 'right' (the gear takes the other side)
+                showClock: true,
+                showWeather: true
+            },
             home: null,                 // [{ id, label, brand }] once edited; null = config.js apps
             inputs: null                // [{ hdmi, label, brand, method, hidden }] once edited; null = config.js
         };

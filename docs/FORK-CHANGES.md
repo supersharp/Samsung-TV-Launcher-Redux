@@ -2,7 +2,7 @@
 
 This repository is a fork of the Arn0 launcher (MIT) described in [the launcher README](../README.md).
 It keeps the upstream 1920×1080, remote-only web app, and changes the Home composition, the input
-row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.23** on a Samsung TV
+row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.24** on a Samsung TV
 (Tizen 6.0, Chromium 110/120 web engine).
 
 The upstream sections of `README.md` are retained so the original design notes still make sense.
@@ -14,6 +14,7 @@ This document is the comparison: what is new, what changed, and what is delibera
 | --- | --- | --- |
 | Home composition | Clock, apps shelf, consoles shelf; section headings | Hero + low rails, static rose/violet veil, smaller clock, **Connected Devices** label |
 | Background motion | Instant wallpaper change | Instant/Dark fade/Crossfade, fade depth, zoom amount/speed, custom interval |
+| Home layout | Fixed clock, clock left, apps above devices | Small/Medium/Large app and device tiles, either row on top, clock/settings sides swapped, clock or weather hidden |
 | Home apps | Upstream defaults | TizenTube shown as "YouTube", AirPlay, All apps |
 | HDMI row | Only consoles configured in `config.js` | Configured devices **plus** live HDMI ports discovered from `VIDEOSOURCE` |
 | Detected inputs | — | Shown as `HDMI n`; adopt/named from Settings ▸ Connected Devices |
@@ -22,11 +23,11 @@ This document is the comparison: what is new, what changed, and what is delibera
 | Photo transition | 2 s crossfade | Dark fade (default) or crossfade; depth and duration configurable |
 | Photo source | Follows Background | All wallpapers (default) or Same as Background |
 | Screen-saver settings | Presets only | Presets + a **Custom…** number field for every numeric value |
-| Settings layout | Fixed page | Scrollable screen-saver and Background pages with remote-following focus |
+| Settings layout | Fixed page | Scrollable screen-saver and Background pages with remote-following focus and ▲ ▼ Scroll hints |
 | Weather | `config.js` only | Settings ▸ Weather with coordinates, units, refresh interval, Home + screen-saver reading, optional local presets |
 | Brand marks | Upstream set | Adds Apple, Wii U, Windows, Linux and USB |
 | Native Home helper | Guarded helper in upstream `native/` | Not published here; local-only (see **What is not committed**) |
-| Package version | 0.2.0 | 0.6.23 |
+| Package version | 0.2.0 | 0.6.24 |
 
 ## Home screen
 
@@ -37,6 +38,10 @@ This document is the comparison: what is new, what changed, and what is delibera
 - **Background motion.** Wallpaper rotation and manual photo changes can use Instant, Dark fade or
   Crossfade, with transition time, fade depth and a continuous zoom amount/speed; Change every also
   has a Custom seconds value. The defaults stay Instant/Off, so Home is unchanged until enabled.
+- **Home Layout.** Settings ▸ Home Layout chooses Small/Medium/Large tiles for apps and connected
+  devices, which row is on top, whether the clock or gear takes the left side, and whether the clock
+  or weather is shown. The shelves are a flex column, so size/order changes reflow without fixed
+  row positions.
 - **Curated Home apps.** `config.js` ships TizenTube (labelled "YouTube") and AirPlay. Xbox,
   TizenBrew and Samsung TV Plus were removed from Home; TV Plus is disabled at TV level. TizenBrew
   remains in All apps.

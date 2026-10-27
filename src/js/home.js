@@ -16,6 +16,7 @@
         apps: [],              // launchable apps from the TV (or the cache)
         appsSig: null,
         lastFetch: 0,
+        layoutSig: null,       // sizes/order currently applied to the shelves
         showEverything: false, // All apps: bypass the consumer filter
         tvMode: false,         // HDMI shown inside the launcher
         hdmi: {}               // last known { port: connected }
@@ -245,6 +246,7 @@
             });
             if (again) UI.focusOn(again);
         }
+        applyLayout();
         if (UI.isVisible('home')) UI.refresh();
     }
 
@@ -404,6 +406,11 @@
     function renderHomeWeather() {
         var box = $('home-weather');
         if (!box) return;
+        var layout = Prefs.get().layout || {};
+        if (layout.showWeather === false) {
+            box.classList.add('hidden');
+            return;
+        }
         var w = window.Weather && Weather.current();
         if (!w) {
             box.classList.add('hidden');
@@ -413,6 +420,51 @@
         $('home-wx-temp').textContent = w.temp;
         $('home-wx-detail').textContent = w.detail;
         box.classList.remove('hidden');
+    }
+
+    // Applies Settings ▸ Home Layout. The shelves are a flex column, so size/order changes
+    // reflow without hard-coded row positions; measuring keeps the block above the hint bar.
+    function applyLayout() {
+        var p = Prefs.get().layout || {};
+        var home = $('home');
+        var appSize = (p.appSize === 'small' || p.appSize === 'large') ? p.appSize : 'medium';
+        var inputSize = (p.inputSize === 'small' || p.inputSize === 'large') ? p.inputSize : 'medium';
+
+        home.classList.remove('app-size-small', 'app-size-medium', 'app-size-large');
+        home.classList.remove('input-size-small', 'input-size-medium', 'input-size-large');
+        home.classList.add('app-size-' + appSize);
+        home.classList.add('input-size-' + inputSize);
+        home.classList.toggle('layout-inputs-top', p.top === 'inputs');
+        home.classList.toggle('layout-apps-top', p.top !== 'inputs');
+        home.classList.toggle('clock-right', p.clockSide === 'right');
+        home.classList.toggle('gear-left', p.clockSide === 'right');
+        home.classList.toggle('hide-clock', p.showClock === false);
+        home.classList.toggle('hide-weather', p.showWeather === false);
+
+        var shelves = $('shelves');
+        if (shelves) {
+            var total = 0;
+            var visible = 0;
+            UI.children(shelves).forEach(function (section) {
+                if (section.classList.contains('hidden')) return;
+                var h = section.offsetHeight;
+                if (!h) return;
+                if (visible) total += 24;
+                total += h;
+                visible++;
+            });
+            var top = Math.max(520, Math.min(610, 990 - total));
+            shelves.style.top = top + 'px';
+        }
+
+        var sig = appSize + '/' + inputSize + '/' + (p.top === 'inputs' ? 'inputs' : 'apps');
+        if (state.layoutSig !== sig) {
+            state.layoutSig = sig;
+            UI.resetScroll($('apps-row'));
+            UI.resetScroll($('inputs-row'));
+        }
+
+        renderHomeWeather();
     }
 
     // The TV takes ~4 s to list its ~450 apps, so Home is drawn from the last list we saw
@@ -494,8 +546,15 @@
             el: $('home'),
             startRow: 1,
             hints: [['OK', 'Open'], ['▲', 'Settings']],
+            onShow: applyLayout,
             rows: function () {
-                return [[$('gear')], UI.children($('apps-row')), UI.children($('inputs-row'))];
+                var apps = UI.children($('apps-row'));
+                var inputs = UI.children($('inputs-row'));
+                var top = Prefs.get().layout && Prefs.get().layout.top;
+                var order = top === 'inputs' ? [inputs, apps] : [apps, inputs];
+                var rows = [[$('gear')]];
+                order.forEach(function (row) { if (row.length) rows.push(row); });
+                return rows;
             },
             activate: function (item) {
                 if (item.kind === 'app') launchApp(item);
@@ -590,6 +649,7 @@
         tvMode: function () { return state.tvMode; },
         refreshInputStatus: refreshInputStatus,
         renderLab: renderLab,
+        applyLayout: applyLayout,
         updateClock: updateClock,
         reloadApps: loadApps,
         miniTile: miniTile,

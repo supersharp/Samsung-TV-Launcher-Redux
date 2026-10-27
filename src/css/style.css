@@ -1255,18 +1255,33 @@ html.preview, html.preview body {
 
 /* ---------- Low rails, no shelf headings ---------- */
 
-#apps-section { top: 610px; }
-#inputs-section { top: 830px; }
+#shelves {
+    position: absolute;
+    top: 610px;
+    left: var(--edge);
+    right: var(--edge);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+#shelves .shelf {
+    position: static;
+    left: auto;
+    right: auto;
+}
+
+#home.layout-inputs-top #inputs-section { order: -1; }
+#home.layout-apps-top #inputs-section { order: 1; }
+
 .shelf h2 { display: none; }
 
 /* Name the second row; the apps row stays unlabelled. */
 #inputs-section h2 {
     display: block;
-    position: absolute;
-    top: -32px;
-    left: 0;
-    margin: 0;
+    margin: 0 0 10px;
     font-size: 19px;
+    letter-spacing: 0.16em;
     color: rgba(255, 255, 255, 0.5);
 }
 #home .row-viewport { width: 1728px; }
@@ -1287,6 +1302,67 @@ html.preview, html.preview body {
 #home .input .input-glyph { width: 76px; height: 76px; margin-right: 26px; }
 #home .input .name { font-size: 30px; }
 #home .input .port { font-size: 22px; }
+
+/* ---------- Home Layout options ---------- */
+
+#home.clock-right .clock {
+    left: auto;
+    right: var(--edge);
+    text-align: right;
+}
+
+#home.clock-right .home-weather {
+    justify-content: flex-end;
+}
+
+#home.gear-left .gear {
+    left: var(--edge);
+    right: auto;
+}
+
+#home.hide-clock #time,
+#home.hide-clock #date {
+    display: none;
+}
+
+#home.hide-clock .home-weather {
+    margin-top: 0;
+}
+
+#home.hide-weather .home-weather {
+    display: none !important;
+}
+
+/* Small and large tile presets; Medium is the base rule above. */
+#home.app-size-small .app { width: 210px; margin-right: 22px; }
+#home.app-size-small .app .tile { height: 120px; border-radius: 18px; }
+#home.app-size-small .app .icon { width: 100px; height: 100px; margin: -50px 0 0 -50px; }
+#home.app-size-small .app .wordmark { font-size: 50px; }
+#home.app-size-small .app .mono { font-size: 54px; }
+#home.app-size-small .all-tile svg { width: 54px; height: 54px; margin: -27px 0 0 -27px; }
+#home.app-size-small .app .label { margin-top: 10px; font-size: 20px; }
+
+#home.app-size-large .app { width: 300px; margin-right: 26px; }
+#home.app-size-large .app .tile { height: 170px; border-radius: 24px; }
+#home.app-size-large .app .icon { width: 144px; height: 144px; margin: -72px 0 0 -72px; }
+#home.app-size-large .app .wordmark { font-size: 72px; }
+#home.app-size-large .app .mono { font-size: 76px; }
+#home.app-size-large .all-tile svg { width: 76px; height: 76px; margin: -38px 0 0 -38px; }
+#home.app-size-large .app .label { margin-top: 14px; font-size: 24px; }
+
+#home.input-size-small .input { width: 360px; margin-right: 22px; }
+#home.input-size-small .input .tile { height: 126px; padding: 0 26px; }
+#home.input-size-small .input .mark,
+#home.input-size-small .input .input-glyph { width: 64px; height: 64px; margin-right: 20px; }
+#home.input-size-small .input .name { font-size: 26px; }
+#home.input-size-small .input .port { font-size: 20px; }
+
+#home.input-size-large .input { width: 520px; margin-right: 26px; }
+#home.input-size-large .input .tile { height: 172px; padding: 0 38px; }
+#home.input-size-large .input .mark,
+#home.input-size-large .input .input-glyph { width: 90px; height: 90px; margin-right: 30px; }
+#home.input-size-large .input .name { font-size: 34px; }
+#home.input-size-large .input .port { font-size: 24px; }
 
 /* Focus: ring plus a soft glow; the scale stays a composited transform. */
 #home .app.focused .tile,

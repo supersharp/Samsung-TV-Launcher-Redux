@@ -1,7 +1,7 @@
 # Arn0 Launcher — TV fork
 
 A fork of the Arn0 launcher (MIT) for a Samsung Tizen TV: a 1920×1080, remote-only web app.
-Current package: `TvLaunch01.Launcher` **0.6.23**.
+Current package: `TvLaunch01.Launcher` **0.6.24**.
 
 ![The launcher home with weather under the clock and a Connected Devices row showing Windows, Linux and USB](docs/preview-home.png)
 
@@ -16,6 +16,8 @@ Current package: `TvLaunch01.Launcher` **0.6.23**.
 - **Background motion** — the same Instant / Dark fade / Crossfade, transition time, fade depth
   and zoom amount/speed controls as the screen saver, plus a Custom rotation interval. Defaults
   stay Instant/Off until you opt in.
+- **Home Layout** — Small/Medium/Large app and device tile sizes, choose which row is on top,
+  swap the clock and settings sides, and hide the clock or weather.
 - **Screen saver** — breathing zoom with adjustable amount and speed, Dark fade or Crossfade
   (depth and duration), 2/5 min photo intervals, and Custom numeric fields; the settings page
   scrolls with the remote.
@@ -32,7 +34,11 @@ No new Tizen privileges.
 
 **Settings**
 
-![Main Settings with Connected Devices and Weather entries](docs/preview-settings.png)
+![Main Settings with Connected Devices, Home Layout and Weather entries](docs/preview-settings.png)
+
+**Home Layout**
+
+![Home Layout settings](docs/preview-home-layout.png)
 
 **Background**
 
