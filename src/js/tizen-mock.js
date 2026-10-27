@@ -13,9 +13,13 @@
     }
 
     var apps = [
-        app('Arn0Lnchr0.Launcher', 'Arn0 Launcher'),
+        app('TvLaunch01.Launcher', 'TV Launcher'),
         app('xvvl3S1TT1.TizenTubeStandalone', 'TizenTube'),
         app('com.samsung.tv.cobalt-yt', 'YouTube'),
+        app('GHI3a0zMSx.XboxGamePass', 'Xbox Game Pass'),
+        app('xvvl3S1bvH.TizenBrewStandalone', 'TizenBrew'),
+        app('NRi6kdBYJ0.AirPlayWebApp', 'AirPlay'),
+        app('com.samsung.tv.tvplus', 'Samsung TV Plus'),
         app('org.tizen.netflix-app', 'Netflix'),
         app('org.tizen.primevideo', 'Prime Video'),
         app('MCmYXNxgcu.DisneyPlus', 'Disney+'),
@@ -57,7 +61,7 @@
                 later(ok);
             },
             getCurrentApplication: function () {
-                return { appInfo: { id: 'Arn0Lnchr0.Launcher' }, exit: function () {}, hide: function () {} };
+                return { appInfo: { id: 'TvLaunch01.Launcher' }, exit: function () {}, hide: function () {} };
             }
         },
         systeminfo: {

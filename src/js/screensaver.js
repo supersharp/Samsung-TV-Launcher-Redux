@@ -1,6 +1,6 @@
 /*
- * Screen saver: photos with a slow zoom, a clock and a caption, after a stretch with no input
- * on Home. Any key closes it, and that press does nothing else.
+ * Screen saver: photos with a slow breathing zoom, a clock and a caption, after a stretch with
+ * no input on Home. Any key closes it, and that press does nothing else.
  *
  * Adapted from a design mockup rather than ported from it. The mockup's backdrop was nine
  * radial-gradients over a linear-gradient — the exact shape the Lab render probe measured at
@@ -26,11 +26,30 @@
         { key: '15m', label: '15 min', ms: 15 * 60 * 1000 }
     ];
 
-    // The design asks for a photo change every 60-90 s; these are the ends and the middle.
+    /*
+     * How long each photo stays up. The 60-90 s options are the design's; the longer ones are
+     * for a screen saver left on through an evening.
+     */
     var PHOTO_EVERY = [
         { key: '60s', label: '60 s', ms: 60 * 1000 },
         { key: '75s', label: '75 s', ms: 75 * 1000 },
-        { key: '90s', label: '90 s', ms: 90 * 1000 }
+        { key: '90s', label: '90 s', ms: 90 * 1000 },
+        { key: '2m', label: '2 min', ms: 2 * 60 * 1000 },
+        { key: '5m', label: '5 min', ms: 5 * 60 * 1000 }
+    ];
+
+    // How the next photo arrives. 'dark' fades the picture to black, swaps under it, then
+    // reveals the new one; 'crossfade' overlaps the two layers directly.
+    var TRANSITIONS = [
+        { key: 'dark', label: 'Dark fade' },
+        { key: 'crossfade', label: 'Crossfade' }
+    ];
+
+    // Total time for one change: for Dark fade, half down and half back up.
+    var TRANSITION_TIMES = [
+        { key: '2s', label: '2 s', ms: 2 * 1000 },
+        { key: '4s', label: '4 s', ms: 4 * 1000 },
+        { key: '6s', label: '6 s', ms: 6 * 1000 }
     ];
 
     var DARK_AFTER = [
@@ -41,21 +60,22 @@
     ];
 
     /*
-     * The photo drifts rather than zooms. A zoom changes the layer's raster scale, and this
-     * engine re-rasterises a scaled 1920x1080 layer in visible steps instead of compositing it
-     * smoothly — the first version of this did zoom, and on the TV it stepped badly. A translate
-     * leaves the raster alone and only changes the transform matrix, which is the one thing the
-     * compositor is certain to do per frame. The layer is laid out larger than the screen so
-     * there is something to drift into, and panning also beats zooming for burn-in: a zoom from
-     * the centre leaves the middle of the picture almost stationary.
+     * Motion defaults. The zoom amount and speed are settings now (Settings ▸ Screen saver);
+     * these are the fallbacks used by a fresh install or an old saved value.
+     *
+     * The photo breathes: a gradual zoom in, then a gradual zoom back out, repeating while the
+     * screen saver is up. One transition per leg, run by the compositor, no JavaScript per
+     * frame. The layer is laid out larger than the screen so the zoom end point and the small
+     * sideways drift never reveal an edge.
      */
-    var PAN_X = 160;                // overhang each side, matching .ss-photo in the stylesheet
-    var PAN_Y = 90;
-    var HELD_LEG_MS = 90 * 1000;    // one leg of the drift when a single photo is held
+    var DEFAULT_ZOOM_PCT = 9;
+    var DEFAULT_ZOOM_SEC = 16;
+    var DEFAULT_FADE_PCT = 100;
+    var DRIFT_X = 42;               // a little sideways travel, so the centre moves too
+    var DRIFT_Y = 24;
     var CLOCK_MOVE_MS = 150 * 1000; // "every 2-3 minutes"
     var CLOCK_POSITIONS = 4;        // .ss-clock.pos-0 .. pos-3
     var NUDGES = [[0, 0], [7, -5], [-6, 6], [4, 8]];
-    var FADE_MS = 2000;             // crossfade, also set as the default in the stylesheet
     var POLL_MS = 1000;
 
     var open = false;
@@ -68,8 +88,9 @@
     var openedAt = 0;
     var nextPhotoAt = 0;
     var nextClockMoveAt = 0;
-    var nextPanAt = 0;
-    var panSign = 1;            // flipped on each leg, so the drift alternates direction
+    var nextZoomAt = 0;
+    var zoomed = false;
+    var zoomSign = 1;           // flipped on each zoom in, so photos drift opposite ways
     var nudge = 0;
     var lastClockText = '';
     var clockPos = 0;
@@ -82,26 +103,77 @@
             list.find(function (o) { return o.key === fallback; });
     }
 
-    function delay() { return option(DELAYS, prefs().delay, '5m'); }
-    function photoEvery() { return option(PHOTO_EVERY, prefs().photoEvery, '75s'); }
-    function darkAfter() { return option(DARK_AFTER, prefs().dark, '1h'); }
+    // Numeric pref with a range guard. Older saves have strings, so a wrong type falls back.
+    function numberPref(key, fallback, min, max) {
+        var v = prefs()[key];
+        if (typeof v !== 'number' || !isFinite(v)) return fallback;
+        return Math.min(max, Math.max(min, v));
+    }
+
+    // Preset keys ('5m') and custom numbers (7, meaning minutes) both live in the same field.
+    function delay() {
+        var v = prefs().delay;
+        if (typeof v === 'number' && isFinite(v)) return { key: 'custom', label: v + ' min', ms: v * 60 * 1000 };
+        return option(DELAYS, v, '5m');
+    }
+
+    function photoEvery() {
+        var v = prefs().photoEvery;
+        if (typeof v === 'number' && isFinite(v)) return { key: 'custom', label: v + ' s', ms: v * 1000 };
+        return option(PHOTO_EVERY, v, '75s');
+    }
+
+    function darkAfter() {
+        var v = prefs().dark;
+        if (typeof v === 'number' && isFinite(v)) {
+            return v <= 0
+                ? { key: 'custom', label: 'Never', ms: 0 }
+                : { key: 'custom', label: v + ' min', ms: v * 60 * 1000 };
+        }
+        return option(DARK_AFTER, v, '1h');
+    }
+
+    function transitionKind() {
+        return prefs().transition === 'crossfade' ? 'crossfade' : 'dark';
+    }
+
+    function transitionMs() {
+        var v = prefs().transitionTime;
+        if (typeof v === 'number' && isFinite(v)) return v * 1000;
+        return option(TRANSITION_TIMES, v, '4s').ms;
+    }
+
+    function source() {
+        return prefs().source === 'background' ? 'background' : 'all';
+    }
+
+    function zoomAmount() { return numberPref('zoomAmount', DEFAULT_ZOOM_PCT, 0, 40); }
+    function zoomMs() { return numberPref('zoomSpeed', DEFAULT_ZOOM_SEC, 1, 120) * 1000; }
+    function fadeDepth() { return numberPref('fadeDepth', DEFAULT_FADE_PCT, 0, 100); }
 
     // ---------- Photos
 
     function rotating() {
-        return Prefs.get().wallpaper.mode === 'rotate' && Wallpaper.list().length > 1;
+        if (Wallpaper.list().length < 2) return false;
+        // The screen saver is a slideshow by default; "Same as Background" makes it hold the
+        // Home choice instead. This is what used to make a 60 s interval do nothing when
+        // Background was on a single photo.
+        if (source() === 'all') return true;
+        return Prefs.get().wallpaper.mode === 'rotate';
     }
 
     /*
-     * The photo follows the Background setting: Off shows no photo, Photo holds the chosen one,
-     * Rotate cycles the lot. The index is the screen saver's own — advancing it must not rewrite
-     * the Home wallpaper or restart its rotation clock, so Prefs.wallpaper is read, never written.
+     * "All wallpapers" (the default) cycles the list regardless of what Home is showing.
+     * "Same as Background" keeps the old behaviour: Off shows no photo, Photo holds the chosen
+     * one, Rotate cycles. The index is the screen saver's own — advancing it must not rewrite
+     * the wallpaper Home comes back to, so Prefs.wallpaper is read, never written.
      */
     function photoAt(i) {
-        var p = Prefs.get().wallpaper;
-        if (p.mode === 'off') return null;
         var list = Wallpaper.list();
         if (!list.length) return null;
+        if (source() === 'all') return list[((i % list.length) + list.length) % list.length];
+        var p = Prefs.get().wallpaper;
+        if (p.mode === 'off') return null;
         if (p.mode !== 'rotate') return Wallpaper.find(p.photo);
         return list[((i % list.length) + list.length) % list.length];
     }
@@ -113,52 +185,96 @@
         return i < 0 ? 0 : i;
     }
 
-    // How long one leg of the drift lasts: a rotating photo drifts for exactly as long as it is up.
-    function legMs() {
-        return rotating() ? photoEvery().ms : HELD_LEG_MS;
+    // The two ends of the breathing cycle: neutral, and slightly zoomed with a small drift.
+    function pose(zoomed, sign) {
+        if (!zoomed) return 'translate(0px, 0px) scale(1)';
+        var to = 1 + zoomAmount() / 100;
+        return 'translate(' + (sign * DRIFT_X) + 'px, ' + (sign * DRIFT_Y) + 'px) scale(' + to + ')';
     }
 
-    function corner(sign) {
-        return 'translate(' + (sign * PAN_X) + 'px, ' + (sign * PAN_Y) + 'px)';
+    function zoomTransition() {
+        return 'transform ' + zoomMs() + 'ms cubic-bezier(0.37, 0, 0.63, 1), ' +
+            'opacity ' + transitionMs() + 'ms linear';
     }
 
     /*
-     * Place a layer at the start of its drift with no animation. The suppression has to be
-     * inline rather than a class, because startPan sets `transition` inline and an inline
+     * Place a layer at the neutral pose with no animation. The suppression has to be inline
+     * rather than a class, because startZoomIn sets `transition` inline and an inline
      * declaration beats a class rule.
      */
-    function resetPan(layer, sign) {
+    function resetZoom(layer) {
         layer.style.transition = 'none';
-        layer.style.transform = corner(sign);
-        // Reading a layout property flushes that, so the transition startPan restores runs from
-        // this corner instead of being collapsed into the move away from it.
+        layer.style.transform = pose(false);
+        // Reading a layout property flushes that, so the transition startZoomIn restores runs
+        // from this pose instead of being collapsed into the move away from it.
         void layer.offsetWidth;
     }
 
     /*
-     * The drift is one CSS transition per leg: set once, run by the compositor, no JavaScript
-     * per frame. Successive photos drift in opposite directions so the picture is not always
-     * sliding the same way.
+     * One CSS transition per leg: set once, run by the compositor, no JavaScript per frame.
+     * Successive photos are pushed in opposite directions so the picture is not always
+     * drifting the same way.
      */
-    function startPan() {
-        panSign = -panSign;
-        nextPanAt = Date.now() + legMs();
+    function startZoomIn() {
+        zoomSign = -zoomSign;
+        zoomed = true;
         var layer = layers[front];
-        layer.style.transition = 'opacity ' + FADE_MS + 'ms linear, transform ' + legMs() + 'ms linear';
-        layer.style.transform = corner(panSign);
+        layer.style.transition = zoomTransition();
+        layer.style.transform = pose(true, zoomSign);
+        nextZoomAt = Date.now() + zoomMs();
+    }
+
+    function startZoomOut() {
+        zoomed = false;
+        layers[front].style.transition = zoomTransition();
+        layers[front].style.transform = pose(false);
+        nextZoomAt = Date.now() + zoomMs();
+    }
+
+    /*
+     * Dark style: dim the picture to the configured black level over half the transition, swap
+     * and start the new zoom under it, then reveal over the other half. The overlay sits below
+     * the clock and caption, so those remain readable throughout.
+     */
+    function darkChange(back, old, token, onShown) {
+        var fade = $('ss-fade');
+        var total = transitionMs();
+        var half = Math.round(total / 2);
+        fade.style.transition = 'opacity ' + half + 'ms linear';
+        fade.style.opacity = String(fadeDepth() / 100);
+        setTimeout(function () {
+            if (!open || token !== photoToken) return;
+            // The screen is black now: put the incoming photo in place and start its zoom.
+            // Commit opacity at 1 before startZoomIn restores a transition, otherwise the
+            // incoming photo fades in a second time after the black has already cleared.
+            back.style.opacity = '1';
+            void back.offsetWidth;
+            old.style.transition = 'none';
+            old.style.opacity = '0';
+            front = 1 - front;
+            startZoomIn();
+            if (onShown) onShown();
+            // Reveal the new photo over the rest of the transition.
+            fade.style.transition = 'opacity ' + (total - half) + 'ms linear';
+            fade.style.opacity = '0';
+        }, half);
     }
 
     /*
      * The incoming photo is decoded on the hidden layer before anything fades, so a slow decode
      * cannot show as a flash of empty background. A token abandons a decode that finishes after
      * the next change, or after the screen saver has closed.
+     *
+     * `initial` is the first photo when the screen saver opens: it always fades in from black
+     * rather than doing a dark change against an already-empty screen. `onShown` runs when the
+     * new photo is actually revealed, which is where the caption and the text nudge belong.
      */
-    function showPhoto(w) {
+    function showPhoto(w, onShown, initial) {
         var token = ++photoToken;
         if (!w) {
             layers[0].style.opacity = '0';
             layers[1].style.opacity = '0';
-            nextPanAt = 0;
+            nextZoomAt = 0;
             return;
         }
         var swapped = false;
@@ -168,14 +284,19 @@
             var back = layers[1 - front];
             var old = layers[front];
             back.style.backgroundImage = 'url("' + w.file + '")';
-            // Placed at the corner startPan is about to drift away from, animation suppressed.
-            resetPan(back, panSign);
+            // Placed at the neutral pose startZoomIn is about to move away from, animation suppressed.
+            resetZoom(back);
+            if (!initial && transitionKind() === 'dark') {
+                darkChange(back, old, token, onShown);
+                return;
+            }
             front = 1 - front;
             // Restores the transition before either property is given a new value, so the
-            // crossfade and the drift both animate instead of jumping.
-            startPan();
+            // crossfade and the zoom both animate instead of jumping.
+            startZoomIn();
             back.style.opacity = '1';
             old.style.opacity = '0';
+            if (onShown) onShown();
         };
         var img = new Image();
         img.onload = swap;
@@ -257,13 +378,16 @@
         nudge = 0;
         clockPos = 0;
         photoIndex = startIndex();
-        panSign = 1;
+        zoomSign = 1;
+        zoomed = false;
         lastClockText = '';
         layers[0].style.opacity = '0';
         layers[1].style.opacity = '0';
-        resetPan(layers[0], panSign);
-        resetPan(layers[1], panSign);
+        resetZoom(layers[0]);
+        resetZoom(layers[1]);
         $('ss-dark').style.opacity = '0';
+        $('ss-fade').style.transition = 'none';
+        $('ss-fade').style.opacity = '0';
         $('ss-caption').style.transform = '';
         setClockPos(0);
         $('ss-clock').style.transform = '';
@@ -272,7 +396,7 @@
         openedAt = now;
         nextPhotoAt = now + photoEvery().ms;
         nextClockMoveAt = now + CLOCK_MOVE_MS;
-        nextPanAt = 0;
+        nextZoomAt = 0;
 
         UI.show('screensaver');
         updateClock();
@@ -281,7 +405,7 @@
         if (window.Weather) Weather.refresh();
         var w = photoAt(photoIndex);
         caption(w);
-        showPhoto(w);
+        showPhoto(w, null, true);
         DevLog.log('Screen saver on');
     }
 
@@ -303,12 +427,16 @@
             photoIndex++;
             nextPhotoAt = now + photoEvery().ms;
             var w = photoAt(photoIndex);
-            caption(w);
-            nudgeText();
-            showPhoto(w);
-        } else if (nextPanAt && now >= nextPanAt) {
-            // A held photo has reached the far corner; send it back the other way.
-            startPan();
+            // Caption and text nudge wait for the new photo to be revealed, so the title never
+            // describes a picture that is still fading in.
+            showPhoto(w, function () {
+                caption(w);
+                nudgeText();
+            });
+        } else if (nextZoomAt && now >= nextZoomAt) {
+            // One leg of the breathing cycle has finished; take the other one.
+            if (zoomed) startZoomOut();
+            else startZoomIn();
         }
     }
 
@@ -317,6 +445,8 @@
         open = false;
         lastInput = Date.now();
         photoToken++;
+        $('ss-fade').style.transition = 'none';
+        $('ss-fade').style.opacity = '0';
         // Dropping the images releases two full-screen textures on a 2 GB device.
         layers.forEach(function (l) {
             l.style.opacity = '0';
@@ -376,9 +506,17 @@
         DELAYS: DELAYS,
         PHOTO_EVERY: PHOTO_EVERY,
         DARK_AFTER: DARK_AFTER,
+        TRANSITIONS: TRANSITIONS,
+        TRANSITION_TIMES: TRANSITION_TIMES,
         delay: delay,
         photoEvery: photoEvery,
         darkAfter: darkAfter,
+        transition: transitionKind,
+        transitionTime: transitionMs,
+        source: source,
+        zoomAmount: zoomAmount,
+        zoomSpeed: function () { return zoomMs() / 1000; },
+        fadeDepth: fadeDepth,
         init: init,
         open: openSaver,
         close: close,

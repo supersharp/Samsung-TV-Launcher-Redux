@@ -81,6 +81,10 @@ Installing the launcher is reversible by uninstalling it. The Home-button change
 with the saved per-device baseline, but it rewrites undocumented platform preferences. The
 launcher works fine without that change, open it from the app list like any other app.
 
+**This public fork publishes the web app only.** The guarded native Home/startup helper and the
+per-device baseline are intentionally not in the repository, so the native half of the setup guide
+is reference material; the launcher installs and runs as an ordinary web app without it.
+
 Evidence and limits:
 
 | | |
@@ -132,9 +136,9 @@ src/                  everything that goes into the .wgt
   js/config.local.js  gitignored per-TV overrides, merged over config.js (not in the repo)
   js/brands.js        tile colours and marks per brand
   js/apps.js          list / filter / launch via tizen.application
-  js/inputs.js        HDMI via tizen.systeminfo + tizen.tvwindow
+  js/inputs.js        HDMI discovery via tizen.systeminfo + switching via tizen.tvwindow
   js/wallpaper.js     wallpaper display and rotation
-  js/screensaver.js   idle screen saver: photos, slow zoom, clock
+  js/screensaver.js   idle screen saver: photos, breathing zoom, clock
   js/appearance.js    clock, date and font settings
   js/weather.js       Open-Meteo reading for the screen saver corner
   js/prefs.js         settings saved on the TV
@@ -146,10 +150,12 @@ src/                  everything that goes into the .wgt
   js/platform-probe.js  reports which tizen.* / webapis.* APIs the TV exposes (Lab screen only)
   js/boot.js          start-up
   js/tizen-mock.js    fake Tizen APIs for the browser preview (inactive on the TV)
-scripts/              build.sh, serve.mjs, devlog-server.mjs, fetch-assets.mjs, make-icon.mjs
-native/               guarded Home/startup helpers — read docs/setup-tv.md first
-docs/                 setup guide
+scripts/              build-marks.mjs, build.sh, serve.mjs, devlog-server.mjs, fetch-assets.mjs, make-icon.mjs
+docs/                 setup guide, fork changes
 ```
+
+The optional native Home/startup helper is kept out of the public fork: the launcher installs as an
+ordinary web app. The native half of docs/setup-tv.md is retained from upstream for reference.
 
 ### Settings
 
@@ -159,14 +165,17 @@ Saved on the TV in `localStorage`. They survive restarts and in-place updates, n
   1 hour, daily.
 - **Apps on Home** — OK on an app opens Move / Remove; OK on the right-hand slot adds one.
 - **Consoles** — per console: rename (on-screen keyboard), HDMI port, logo, how it opens, hide,
-  reorder, remove; plus add a console.
+  reorder, remove; plus add a console. Connected HDMI ports the TV reports but that are not in the
+  list appear here as **Detected · connected**, so they can be named without guessing the port.
 - **Appearance** — 24/12-hour clock, date shown/hidden, date language (English, Español, Français),
   font, app names (always / when selected / never).
 - **Navigation sound** — turn arrow-key sounds on or off, choose Soft, Warm or Bright, and preview
   the selected tone.
-- **Screen saver** — on or off, start after 3/5/10/15 min idle on Home, photo change every
-  60/75/90 s while Background is on Rotate, go dark after 30 min / 1 hour / 2 hours / never, and
-  show it now.
+- **Screen saver** — on or off, start after 3/5/10/15 min idle on Home, **Photos: All wallpapers
+  / Same as Background**, change photo every 60/75/90 s or 2/5 min, transition **Dark fade** or
+  **Crossfade**, transition time 2/4/6 s, **Fade to black**, **Zoom amount**, **Zoom speed**, go
+  dark after 30 min / 1 hour / 2 hours / never, and show it now. Every numeric value has a
+  **Custom…** field for an exact number.
 - **Samsung Home** — opens `com.samsung.tv.csfs`, from which TV settings are one press away.
   Opening `com.samsung.tv.coba.setting` directly does not work on this TV. Keep this entry: it is
   the route back if you have redirected the Home button.
@@ -180,11 +189,29 @@ run `node scripts/prepare-wallpapers.mjs <folder>`; friendly names and crop posi
 files live in that script. Current photos are from Unsplash; credits appear when you switch with
 Green.
 
+Home rotation swaps a preloaded photo directly, with no blend. The screen saver's photo change has
+its own transition and timing (below), because a slow change there is the effect you actually sit
+and watch.
+
 ### Screen saver
 
 After a few minutes with no input on Home it shows the wallpapers full screen with the clock, the
 weather and the photo's name in the corners. Any button closes it, and that press does nothing else. It never
 appears over a console input, another screen or the hidden game.
+
+A photo change is either a **Dark fade** (the default) or a **Crossfade**, chosen in Settings ▸
+Screen saver. Dark fade takes half the transition time to dim the picture to black, swaps the
+photo underneath the black layer, and uses the other half to reveal it; the clock and caption sit
+above the black layer and stay readable. Crossfade overlaps the outgoing and incoming photos
+directly. **Fade to black** controls how dark the dark fade goes (100% is true black); **Zoom
+amount** and **Zoom speed** control the breathing zoom. The interval between photos defaults to
+75 s; the transition defaults to 4 s.
+
+**Photos** decides what the screen saver cycles. It defaults to **All wallpapers**, so the screen
+saver is a slideshow regardless of what Home is showing — this is what makes a short interval
+work even when Background is a single photo. **Same as Background** is the older behaviour: Off
+leaves just the clock, Photo holds the chosen picture, Rotate cycles. The screen saver keeps its
+own position, so it never rewrites the wallpaper Home comes back to.
 
 The weather is off until you put coordinates in `config.local.js` (see **What you can change**). It comes from
 [Open-Meteo](https://open-meteo.com/), which needs no API key, and there is deliberately no
@@ -195,11 +222,15 @@ show it, and anything older than three hours is treated as no reading at all —
 screen should go blank rather than state yesterday's temperature as if it were now.
 
 Everything in it moves, because a clock parked in one corner for an hour is a burn-in risk: the
-photo drifts across 320 px while it is up and the next one drifts back the other way, the corner
-text shifts a few pixels on each photo change, the clock moves to another corner every two and a
-half minutes, and the whole thing fades to black once the configured hour is up. Photos follow the
-**Background** setting — Rotate cycles them, a single photo is held, Off leaves just the clock —
-using the screen saver's own position, so it never rewrites the wallpaper Home comes back to.
+photo breathes — by default it zooms in 9% over 16 seconds, then back out over 16 seconds,
+repeating — with a small sideways drift so the centre of the picture is not static either. The
+corner text shifts a few pixels on each photo change, the clock moves to another corner every two
+and a half minutes, and the whole thing fades to black once the configured hour is up.
+
+Every numeric value in Settings ▸ Screen saver has preset chips plus a **Custom…** field. The
+Custom field opens the TV's on-screen keyboard, accepts one decimal place, and validates the
+range (for example 10–3600 seconds for the photo interval, 0–100% for the fade). Custom values are
+stored as plain numbers, so they survive restarts like any other setting.
 
 Black, rather than off, because a web app cannot turn this panel off: `tizen.power` and
 `webapis.power` are both absent on the reference TV, which **Platform probe: what APIs this TV
@@ -207,14 +238,13 @@ exposes** in the Lab screen will confirm on yours. No privilege changes that —
 you nothing to be refused by. A real power-off is the TV's own Eco Solution ▸ Auto Power Off,
 driven by the same absence of remote input that started the screen saver.
 
-Only `transform` and `opacity` animate, which the compositor can run without repainting. Not every
-composited property is equal here, though, and only running it on the TV showed it: the first
-version used a slow `scale()`, which this engine re-rasterises in visible steps rather than
-compositing, and it stepped badly enough to be unpleasant to watch. A `translate()` of the same
-layer is smooth, so the photo pans instead of zooming and the layer is laid out 320×180 larger
-than the screen to give it room. The Lab probe cannot settle this one: it times a JavaScript
-repaint loop, and a transition that runs off the main thread reads as a clean 60 fps there whether
-or not the panel keeps up. Judge it by eye on the TV.
+Only `transform` and `opacity` animate, which the compositor can run without repainting. The
+upstream launcher, built for a Q70B on Chromium 85, panned instead of zooming because that engine
+re-rasterised a scaled layer in visible steps. This fork's TV runs the upgraded Chromium 110/120
+engine, so the zoom is back: **Zoom amount** (default 9%) and **Zoom speed** (default 16 s per
+leg) in Settings ▸ Screen saver tune it. The layer is laid out a little larger than the screen, so
+1.09× and the 42 px drift never show an edge. If a different panel does step, lower Zoom amount (a
+smaller scale is cheaper to composite) or go back to the translate-only drift.
 
 ### Apps
 
@@ -238,6 +268,14 @@ changes the source (privilege `tv.window`, public). What happens next is undocum
 
 The **Lab** screen (Blue) tries each method per console and reports what happened. The dot on each
 tile is green when the TV reports that port as connected.
+
+The row is not limited to configured consoles. `config.js` ships `inputs: []`, which used to leave
+the row empty; the launcher now reads `VIDEOSOURCE` itself and shows every connected HDMI port as
+`HDMI n` (with a neutral screen glyph) even if it was never configured. It re-reads the list when
+Home is shown and every 30 seconds, so a console or computer plugged in later appears without a
+restart, and an unplugged one disappears. Settings ▸ Consoles lists those ports as **Detected ·
+connected**; opening one names it and turns it into a normal console entry (name, logo, method,
+hide/reorder). A configured entry always wins over auto-detection for the same port.
 
 To collect Lab results on your computer, point `devLogUrl` in `config.js` at it and run
 `npm run devlog`; entries land in `logs/tv.jsonl`. Set it to `null` to disable, which is the
@@ -287,6 +325,79 @@ you actually observed, and strip local addresses and device identifiers first.
 
 What I would find most useful: results from other models and Tizen versions, and especially from a
 TV where `db/menu/smart_hub/ontvsetting/auto_start` starts at `0`.
+
+## Local restyle and additions (this fork)
+
+Installed on the TV as `TvLaunch01.Launcher` **0.6.18** (signed build; `dist/` is gitignored).
+
+The complete upstream comparison — new features, changed behaviour and what is deliberately not
+published — is in **[docs/FORK-CHANGES.md](docs/FORK-CHANGES.md)**.
+
+The Home screen was restyled to a "hero + low rails" composition: a full-bleed
+hero with a static rose/violet veil, a smaller clock, and two low shelves whose
+headings are hidden. Everything is scoped to `#home`, so the Settings tiles and
+the All-apps grid keep their original sizes.
+
+- `src/index.html` — Home markup, with the existing clock, gear, apps and input IDs kept.
+- `src/css/style.css` — the appended **"Hero restyle"** block at the end of the file.
+- `src/js/config.js` — default wallpaper `valley-snow`; Home `apps` trimmed to
+  TizenTube (shown as "YouTube") and AirPlay. Xbox, TizenBrew and Samsung TV Plus
+  were removed from Home; TV Plus is also disabled at TV level. TizenBrew remains
+  in All-apps.
+- `src/img/marks/apple.svg`, `src/img/marks/wiiu.svg` — added marks, selectable per
+  console in Settings ▸ Consoles ▸ Logo. Wii U is copied as-is because its colours
+  are part of the mark; `scripts/build-marks.mjs` supports a `precolored` brand.
+
+The default wallpaper only applies to a fresh install; an existing TV keeps its
+saved choice, so change it in **Settings ▸ Background**. Preview with
+`npm run preview`, then rebuild and sign as usual before deploying.
+
+### 0.6.18 — connected outputs, adjustable zoom and a slow dark fade
+
+![Home with detected HDMI 2 / HDMI 4 tiles, then the screen saver at 4, 8, 12, 16, 20, 24 and 32 seconds](docs/preview-home-zoom.png)
+
+*Browser preview: the HDMI row now fills itself, and the screen saver zooms in to 1.09× and back
+out over 16 seconds each way.*
+
+- **Connected outputs on Home.** `config.js` ships `inputs: []`, so the second
+  row used to stay empty until a console was added by hand — which is why a
+  console or computer on HDMI did not appear. The launcher now asks the TV for
+  its `VIDEOSOURCE` list, adds a tile for every connected HDMI port as `HDMI n`,
+  re-checks when Home is shown and every 30 seconds, and drops a port when it is
+  unplugged. Settings ▸ Consoles lists those ports as **Detected · connected**, so
+  one can be renamed (for example "Games console") and given a logo; once adopted it
+  behaves like any configured console.
+- **Screen saver zoom.** The photo breathes: it zooms in by a configurable amount
+  (default 9%) at a configurable speed (default 16 s per leg), then back out,
+  repeating, with a small sideways drift.
+- **Screen saver transition.** **Dark fade** (the default) dims the picture to a
+  configurable black level, swaps the photo under the black, and reveals it;
+  **Crossfade** overlaps the two layers. Transition time, fade depth, photo
+  interval, start delay and go-dark time all have **Custom…** numeric fields.
+- **Brand marks.** Apple and Wii U were added to the logo picker
+  (`src/img/marks/apple.svg`, `src/img/marks/wiiu.svg`). Wii U keeps its own
+  grey/blue colours; the other marks are recoloured per brand at build time.
+- **The 60 s fix.** A saved interval previously did nothing when Background was on
+  **Photo**, because the screen saver followed the Home choice. Photos now defaults
+  to **All wallpapers**, so the screen saver is a slideshow independent of Home;
+  **Same as Background** restores the old behaviour. This is why the saved 60 s
+  now changes the photo after 60 s.
+- Preview the screen saver directly at `http://localhost:8080/#screensaver`; the
+  hash is ignored on the TV.
+
+![The Screen saver settings page: top and scrolled views](docs/preview-settings-0.6.18.png)
+
+*The page scrolls with the remote. Every numeric row ends with **Custom…**.*
+
+![The Custom number dialog for Change photo every, showing 75 and the allowed range 10–3600 s](docs/preview-custom-dialog.png)
+
+*Custom… opens the same on-screen keyboard the console renamer uses, accepts one decimal place,
+and keeps the dialog open with a toast if the number is outside the range.*
+
+![A dark fade from Snowy valley to Forest path: before, fading down, black at the swap, then the reveal](docs/preview-dark-fade.png)
+
+*Dark fade at the default 4 s: 2 s down, 2 s reveal. The clock and caption sit above the black, so
+they stay readable throughout.*
 
 ## Licence and credits
 

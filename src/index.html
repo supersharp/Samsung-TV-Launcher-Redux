@@ -107,7 +107,9 @@
 
         <section id="screensaver-settings" class="view page hidden">
             <header class="page-head"><h1>Screen saver</h1></header>
-            <div id="screensaver-body" class="settings-body compact"></div>
+            <div id="screensaver-viewport" class="settings-viewport">
+                <div id="screensaver-body" class="settings-body compact"></div>
+            </div>
         </section>
 
         <!-- Two photo layers so one can decode and zoom from scratch while the other fades out. -->
@@ -115,6 +117,8 @@
             <div id="ss-photo-a" class="ss-photo"></div>
             <div id="ss-photo-b" class="ss-photo"></div>
             <div class="ss-scrim"></div>
+            <!-- Dark transition: fades the photo through black; the clock/caption sit above it. -->
+            <div id="ss-fade" class="ss-fade"></div>
             <div id="ss-caption" class="ss-caption">
                 <div id="ss-title" class="ss-title"></div>
             </div>
@@ -135,13 +139,14 @@
         </section>
 
         <section id="runner-game" class="view hidden">
-            <canvas id="runner-canvas" width="1920" height="1080" aria-label="Fiancée runner game"></canvas>
+            <canvas id="runner-canvas" width="1920" height="1080" aria-label="Runner game"></canvas>
         </section>
 
         <div id="rename" class="view overlay hidden">
             <div class="menu-box">
-                <div class="dialog-title">Name</div>
+                <div id="rename-title" class="dialog-title">Name</div>
                 <input id="rename-input" type="text" maxlength="28" autocomplete="off" spellcheck="false">
+                <div id="rename-hint" class="dialog-hint hidden"></div>
             </div>
         </div>
 

@@ -1,5 +1,10 @@
 # Putting it on a TV
 
+> **Public fork note.** This repository contains the web launcher only. The optional native
+> Home/startup helper and the per-device baseline are not published here, so the native half below
+> is retained from the original project for reference. The launcher works installed as an ordinary
+> web app, without changing the Home button.
+
 This guide has two halves. The first installs the launcher as an ordinary web app, which is
 reversible by uninstalling it. The second changes which app the TV treats as Home and starts at
 power-on, which is reversible only if you keep a baseline. Read the second half completely before

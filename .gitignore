@@ -32,6 +32,10 @@ signature*.xml
 # so nothing has to be stripped before a push. See src/js/config.local.example.js.
 src/js/config.local.js
 
+# Public fork: the guarded native Home/startup helper and its per-device baseline are local-only.
+# The launcher works as an ordinary web app without them.
+native/
+
 # native helper build output (device-specific; build it yourself)
 native/**/bin/
 native/**/obj/

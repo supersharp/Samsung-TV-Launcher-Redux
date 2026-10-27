@@ -20,6 +20,8 @@
         { key: 'playstation', label: 'PlayStation' },
         { key: 'xbox', label: 'Xbox' },
         { key: 'switch', label: 'Nintendo Switch' },
+        { key: 'wiiu', label: 'Wii U' },
+        { key: 'apple', label: 'Apple' },
         { key: '', label: 'None' }
     ];
 
@@ -294,29 +296,124 @@
     }
 
     /*
-     * "Change photo" only means something while the Background is on Rotate: with a single
-     * photo the screen saver holds it, exactly as Home does.
+     * Every numeric setting keeps its preset chips, plus a "Custom…" chip that opens a number
+     * dialog. Custom values are stored as plain numbers in the same pref (minutes, seconds or
+     * percent); Screensaver's readers accept both that and the preset keys.
      */
     function screensaverBlocks() {
-        var blocks = [
+        var p = Prefs.get().screensaver;
+        var followsBackground = Screensaver.source() === 'background';
+        var rotate = Prefs.get().wallpaper.mode === 'rotate';
+        return [
             { title: 'Screen saver', key: 'enabled', options: [[true, 'On'], [false, 'Off']] },
-            { title: 'Start after', key: 'delay', options: optionPairs(Screensaver.DELAYS) }
+            {
+                title: 'Start after',
+                key: 'delay',
+                options: optionPairs(Screensaver.DELAYS),
+                custom: {
+                    title: 'Start after (minutes)', min: 1, max: 60, unit: 'min',
+                    get: function () { return Screensaver.delay().ms / 60000; },
+                    set: function (n) { p.delay = n; },
+                    format: function (n) { return n + ' min'; }
+                }
+            },
+            {
+                title: 'Photos',
+                key: 'source',
+                options: [['all', 'All wallpapers'], ['background', 'Same as Background']]
+            },
+            {
+                title: 'Change photo every',
+                key: 'photoEvery',
+                options: optionPairs(Screensaver.PHOTO_EVERY),
+                hint: (followsBackground && !rotate)
+                    ? 'Photos follows Background, which is not rotating. Choose All wallpapers to change photos.'
+                    : '',
+                custom: {
+                    title: 'Change photo every (seconds)', min: 10, max: 3600, unit: 's',
+                    get: function () { return Screensaver.photoEvery().ms / 1000; },
+                    set: function (n) { p.photoEvery = n; },
+                    format: function (n) { return n + ' s'; }
+                }
+            },
+            { title: 'Transition', key: 'transition', options: optionPairs(Screensaver.TRANSITIONS) },
+            {
+                title: 'Transition time',
+                key: 'transitionTime',
+                options: optionPairs(Screensaver.TRANSITION_TIMES),
+                custom: {
+                    title: 'Transition time (seconds)', min: 0.5, max: 30, unit: 's',
+                    get: function () { return Screensaver.transitionTime() / 1000; },
+                    set: function (n) { p.transitionTime = n; },
+                    format: function (n) { return n + ' s'; }
+                }
+            },
+            {
+                title: 'Fade to black',
+                key: 'fadeDepth',
+                options: [[100, '100 %'], [85, '85 %'], [70, '70 %']],
+                hint: p.transition === 'crossfade' ? 'Used by Dark fade only' : '',
+                custom: {
+                    title: 'Fade to black (percent)', min: 0, max: 100, unit: '%',
+                    get: function () { return Screensaver.fadeDepth(); },
+                    set: function (n) { p.fadeDepth = n; },
+                    format: function (n) { return n + ' %'; }
+                }
+            },
+            {
+                title: 'Zoom amount',
+                key: 'zoomAmount',
+                options: [[5, '5 %'], [9, '9 %'], [15, '15 %']],
+                custom: {
+                    title: 'Zoom amount (percent)', min: 0, max: 40, unit: '%',
+                    get: function () { return Screensaver.zoomAmount(); },
+                    set: function (n) { p.zoomAmount = n; },
+                    format: function (n) { return n + ' %'; }
+                }
+            },
+            {
+                title: 'Zoom speed',
+                key: 'zoomSpeed',
+                options: [[10, '10 s'], [16, '16 s'], [25, '25 s']],
+                hint: 'Seconds for one zoom leg',
+                custom: {
+                    title: 'Zoom speed (seconds per leg)', min: 1, max: 120, unit: 's',
+                    get: function () { return Screensaver.zoomSpeed(); },
+                    set: function (n) { p.zoomSpeed = n; },
+                    format: function (n) { return n + ' s'; }
+                }
+            },
+            {
+                title: 'Go dark after',
+                key: 'dark',
+                options: optionPairs(Screensaver.DARK_AFTER),
+                custom: {
+                    title: 'Go dark after (minutes, 0 = never)', min: 0, max: 720, unit: 'min',
+                    get: function () { return Screensaver.darkAfter().ms / 60000; },
+                    set: function (n) { p.dark = n; },
+                    format: function (n) { return n <= 0 ? 'Never' : n + ' min'; }
+                }
+            }
         ];
-        if (Prefs.get().wallpaper.mode === 'rotate') {
-            blocks.push({ title: 'Change photo every', key: 'photoEvery', options: optionPairs(Screensaver.PHOTO_EVERY) });
-        }
-        blocks.push({ title: 'Go dark after', key: 'dark', options: optionPairs(Screensaver.DARK_AFTER) });
-        return blocks;
     }
 
     function optionPairs(list) {
         return list.map(function (o) { return [o.key, o.label]; });
     }
 
-    function renderScreensaver() {
+    function customSelected(block, value) {
+        if (!block.custom || typeof value !== 'number') return false;
+        return !block.options.some(function (o) { return o[0] === value; });
+    }
+
+    function renderScreensaver(opts) {
         var p = Prefs.get().screensaver;
         var body = $('screensaver-body');
+        var viewport = $('screensaver-viewport');
+        // Keep the place when coming back from the number dialog, or when a value changes.
+        var keep = (!opts || opts.back) ? (body._scroll || 0) : 0;
         body.innerHTML = '';
+
         screensaverBlocks().forEach(function (b) {
             var block = el('div', 'setting-block');
             block.appendChild(el('h2', '', b.title));
@@ -324,7 +421,16 @@
             b.options.forEach(function (o) {
                 chips.appendChild(chip(o[1], p[b.key] === o[0], { key: b.key, value: o[0] }));
             });
+            if (b.custom) {
+                var active = customSelected(b, p[b.key]);
+                chips.appendChild(chip(
+                    active ? 'Custom · ' + b.custom.format(p[b.key]) : 'Custom…',
+                    active,
+                    { kind: 'custom', custom: b.custom }
+                ));
+            }
             block.appendChild(chips);
+            if (b.hint) block.appendChild(el('div', 'setting-hint', b.hint));
             body.appendChild(block);
         });
 
@@ -334,11 +440,43 @@
         tryChips.appendChild(chip('Show it now', false, { kind: 'preview' }));
         tryBlock.appendChild(tryChips);
         body.appendChild(tryBlock);
+
+        var max = Math.max(0, body.scrollHeight - (viewport ? viewport.clientHeight : 0));
+        var y = Math.min(Math.max(0, keep), max);
+        body._scroll = y;
+        body.style.transform = y ? 'translateY(' + (-y) + 'px)' : '';
+    }
+
+    // Called by the focus system for the screen saver view; keeps the focused block visible.
+    function scrollToBlock(target) {
+        var block = target.closest ? target.closest('.setting-block') : null;
+        var body = $('screensaver-body');
+        var viewport = $('screensaver-viewport');
+        if (!block || !body || !viewport) return;
+        var top = block.offsetTop;
+        var bottom = top + block.offsetHeight;
+        var height = viewport.clientHeight;
+        var scroll = body._scroll || 0;
+        if (top < scroll) scroll = top;
+        else if (bottom > scroll + height) scroll = bottom - height;
+        scroll = Math.min(Math.max(0, scroll), Math.max(0, body.scrollHeight - height));
+        if (scroll === body._scroll) return;
+        body._scroll = scroll;
+        body.style.transform = 'translateY(' + (-scroll) + 'px)';
     }
 
     function activateScreensaver(item) {
         if (item.kind === 'preview') {
             Screensaver.open();
+            return;
+        }
+        if (item.kind === 'custom') {
+            var c = item.custom;
+            askNumber(c.title, c.get(), c.min, c.max, c.unit, function (n) {
+                c.set(n);
+                Prefs.save();
+                Screensaver.poke();
+            });
             return;
         }
         Prefs.get().screensaver[item.key] = item.value;
@@ -504,7 +642,9 @@
     }
 
     function logoOf(input) {
-        return LOGOS.find(function (l) { return l.key === (input.brand || ''); }) || LOGOS[3];
+        return LOGOS.find(function (l) { return l.key === (input.brand || ''); }) ||
+            LOGOS.find(function (l) { return l.key === ''; }) ||
+            LOGOS[LOGOS.length - 1];
     }
 
     function consoleEntries() {
@@ -515,6 +655,16 @@
                 mini: Home.miniInputTile(input),
                 run: function () { consoleMenu(i); }
             };
+        });
+        // Ports the TV reports live but that are not in the list yet (Home shows them as
+        // "HDMI n"). Adopting one turns it into an ordinary, renamable console entry.
+        Home.detectedInputs().forEach(function (input) {
+            entries.push({
+                label: 'HDMI ' + input.hdmi,
+                value: 'Detected · connected',
+                mini: Home.miniInputTile(input),
+                run: function () { adoptDetected(input.hdmi); }
+            });
         });
         entries.push({ label: '+ Add a console', value: '', run: addConsole });
         return entries;
@@ -603,24 +753,72 @@
         rename('Console', function (name) { editInputs(function (l) { l[index].label = name; }); });
     }
 
-    // ---------- Rename dialog (uses Samsung's on-screen keyboard)
+    // A detected port becomes a normal entry, so it can have a name and a logo like a console.
+    function adoptDetected(port) {
+        editInputs(function (l) { l.push({ hdmi: port, label: 'HDMI ' + port, brand: '' }); });
+        var index = Home.inputs().length - 1;
+        rename('HDMI ' + port, function (name) {
+            editInputs(function (l) { l[index].label = name; });
+        });
+    }
+
+    // ---------- Name / number dialog (uses Samsung's on-screen keyboard)
 
     var renameDone = null;
 
-    function rename(current, done) {
+    function openValueDialog(title, current, hint, numeric, done) {
         renameDone = done;
-        $('rename-input').value = current;
+        $('rename-title').textContent = title;
+        $('rename-hint').textContent = hint || '';
+        $('rename-hint').classList.toggle('hidden', !hint);
+        var input = $('rename-input');
+        input.value = String(current);
+        input.setAttribute('inputmode', numeric ? 'numeric' : 'text');
         UI.show('rename');
+    }
+
+    function rename(current, done) {
+        openValueDialog('Name', current, '', false, function (value) { done(value); });
+    }
+
+    function askNumber(title, current, min, max, unit, done) {
+        var hint = 'Enter ' + min + '–' + max + (unit ? ' ' + unit : '');
+        openValueDialog(title, current, hint, true, function (value) {
+            var n = Number(String(value).replace(',', '.'));
+            if (!isFinite(n) || n < min || n > max) {
+                UI.toast('Enter a number from ' + min + ' to ' + max + (unit ? ' ' + unit : ''));
+                return false;
+            }
+            done(Math.round(n * 10) / 10);
+        });
     }
 
     function closeRename(save) {
         var input = $('rename-input');
         var value = input.value.trim();
         var done = renameDone;
+        if (!save) {
+            renameDone = null;
+            input.blur();
+            UI.back();
+            return;
+        }
+        if (!value) {
+            UI.toast('Enter a value');
+            input.focus();
+            return;
+        }
+        if (done) {
+            var result = done(value);
+            if (result === false) {
+                // A number outside the allowed range: keep the dialog open.
+                input.focus();
+                return;
+            }
+        }
         renameDone = null;
         input.blur();
         UI.back();
-        if (save && value && done) done(value);
     }
 
     // ---------- Advanced
@@ -696,6 +894,7 @@
             el: $('screensaver-settings'),
             rows: function () { return chipRows($('screensaver-body')); },
             onShow: renderScreensaver,
+            onFocus: scrollToBlock,
             activate: activateScreensaver,
             hints: [['OK', 'Select'], ['Back', 'Settings']]
         });
@@ -757,6 +956,13 @@
                 edRender();
                 UI.refresh();
             }
+        });
+        // The TV's port list arrives asynchronously; redraw Consoles when it does so a newly
+        // detected port can be named without leaving and re-entering the page.
+        Home.onInputsChanged(function () {
+            if (!renderConsoles) return;
+            renderConsoles();
+            if (UI.isVisible('consoles')) UI.refresh();
         });
     }
 

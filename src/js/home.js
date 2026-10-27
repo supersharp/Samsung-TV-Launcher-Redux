@@ -21,6 +21,8 @@
         hdmi: {}               // last known { port: connected }
     };
 
+    var inputListeners = [];
+
     // ---------- Tiles
 
     // Pre-coloured by scripts/build-marks.mjs
@@ -90,6 +92,13 @@
     // Small tile used in Settings lists.
     function miniTile(item) {
         var wrap = el('div', 'mini');
+        if (item.glyph) {
+            var tile = el('div', 'tile');
+            tile.style.background = item.bg || '#2a2f3a';
+            tile.appendChild(inputGlyph());
+            wrap.appendChild(tile);
+            return wrap;
+        }
         wrap.appendChild(tileFace(item));
         return wrap;
     }
@@ -106,18 +115,31 @@
         return wrap;
     }
 
+    // Neutral screen-with-arrow glyph for an input nobody has given a brand yet.
+    function inputGlyph() {
+        var g = el('div', 'input-glyph');
+        g.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+            'stroke-linecap="round" stroke-linejoin="round">' +
+            '<rect x="2.5" y="4.5" width="19" height="12.5" rx="2.2"/>' +
+            '<path d="M8.5 21h7M12 17v4"/><path d="M15 10.75H8.5m0 0 2.6-2.6m-2.6 2.6 2.6 2.6"/></svg>';
+        return g;
+    }
+
     function inputTile(input) {
         var brand = findBrand(input.brand || '') || { bg: '#2a2f3a', fg: '#fff', mark: null };
         var wrap = el('div', 'input');
         var tile = el('div', 'tile');
         tile.style.background = brand.bg;
         if (brand.mark) tile.appendChild(markEl(brand));
+        else tile.appendChild(inputGlyph());
         var meta = el('div', 'meta');
         meta.appendChild(el('div', 'name', input.label));
         var port = el('div', 'port');
         var dot = el('span', 'dot');
         port.appendChild(dot);
-        port.appendChild(document.createTextNode('HDMI ' + input.hdmi));
+        // A configured console sounds better as "HDMI 4"; an auto-discovered port already
+        // carries that as its name, so say what it is instead.
+        port.appendChild(document.createTextNode(input.auto ? 'Connected output' : 'HDMI ' + input.hdmi));
         meta.appendChild(port);
         tile.appendChild(meta);
         wrap.appendChild(tile);
@@ -129,6 +151,7 @@
     // Console tile for Settings lists: brand colours and logo only.
     function miniInputTile(input) {
         var brand = findBrand(input.brand || '');
+        if (!brand) return miniTile({ glyph: true });
         return miniTile({ label: input.label, brand: brand && { key: brand.key, bg: brand.bg, fg: brand.fg, mark: brand.mark } });
     }
 
@@ -137,6 +160,38 @@
     // Consoles: edited list from Settings, else config.js.
     function inputs() {
         return Prefs.get().inputs || cfg.inputs || [];
+    }
+
+    /*
+     * Everything the second row should show: the configured consoles, then any HDMI port
+     * the TV reports as connected that has not been configured yet. Discovery is what makes
+     * a console or a computer appear when it is plugged in, instead of the row staying empty
+     * on a fresh install (config.js ships no inputs).
+     */
+    function homeInputs() {
+        var list = inputs();
+        var used = {};
+        list.forEach(function (i) { used[i.hdmi] = true; });
+        var discovered = Object.keys(state.hdmi)
+            .map(Number)
+            .filter(function (port) { return state.hdmi[port] && !used[port]; })
+            .sort(function (a, b) { return a - b; })
+            .map(function (port) {
+                return {
+                    hdmi: port,
+                    label: 'HDMI ' + port,
+                    brand: '',
+                    method: cfg.inputMethod,
+                    auto: true
+                };
+            });
+        return list.concat(discovered);
+    }
+
+    function homeInputsSig() {
+        return homeInputs().map(function (i) {
+            return i.hdmi + ':' + (i.hidden ? 'h' : 's') + ':' + i.label;
+        }).join(',');
     }
 
     function setInputs(list) {
@@ -165,6 +220,9 @@
     }
 
     function renderHome() {
+        var focusedInput = document.querySelector('#inputs-row .focused');
+        var focusPort = focusedInput && focusedInput._item ? focusedInput._item.hdmi : null;
+
         var row = $('apps-row');
         row.innerHTML = '';
         var items = homeItems();
@@ -174,11 +232,19 @@
 
         var row2 = $('inputs-row');
         row2.innerHTML = '';
-        inputs().forEach(function (input) {
+        var list = homeInputs();
+        list.forEach(function (input) {
             if (!input.hidden) row2.appendChild(inputTile(input));
         });
         $('inputs-section').classList.toggle('hidden', !row2.children.length);
         applyInputStatus();
+
+        if (focusPort) {
+            var again = UI.children(row2).find(function (t) {
+                return t._item && t._item.hdmi === focusPort;
+            });
+            if (again) UI.focusOn(again);
+        }
         if (UI.isVisible('home')) UI.refresh();
     }
 
@@ -189,10 +255,14 @@
     }
 
     function refreshInputStatus() {
-        if (!inputs().length) return;
-        Inputs.hdmiStatus().then(function (status) {
+        return Inputs.hdmiStatus().then(function (status) {
+            var before = homeInputsSig();
             state.hdmi = status;
-            applyInputStatus();
+            // Rebuild only when the set of ports changed: a green dot does not need new tiles,
+            // and rebuilding on every poll would throw away the focused tile.
+            if (homeInputsSig() !== before) renderHome();
+            else applyInputStatus();
+            inputListeners.forEach(function (fn) { fn(); });
         }).catch(function (err) {
             log('Input status unavailable: ' + DevLog.errorText(err));
         });
@@ -478,6 +548,11 @@
         // With a cache, let the first frames and key presses through before the slow app list.
         setTimeout(loadApps, cached ? 2000 : 0);
         refreshInputStatus();
+        // A console is often plugged in or powered on after the launcher started, and the TV
+        // only reports it through VIDEOSOURCE. Poll while Home is on screen so the row keeps up.
+        setInterval(function () {
+            if (!document.hidden && UI.isVisible('home')) refreshInputStatus();
+        }, 30 * 1000);
         log('Launcher started');
     }
 
@@ -487,6 +562,10 @@
         homeItems: homeItems,
         setHomeItems: setHomeItems,
         inputs: inputs,
+        homeInputs: homeInputs,
+        detectedInputs: function () {
+            return homeInputs().filter(function (i) { return i.auto; });
+        },
         setInputs: setInputs,
         hdmiStatus: function () { return state.hdmi; },
         // An HDMI input shown inside the launcher: no screen saver over it.
@@ -497,6 +576,7 @@
         reloadApps: loadApps,
         miniTile: miniTile,
         miniInputTile: miniInputTile,
-        onAppsChanged: function (fn) { listeners.push(fn); }
+        onAppsChanged: function (fn) { listeners.push(fn); },
+        onInputsChanged: function (fn) { inputListeners.push(fn); }
     };
 })();

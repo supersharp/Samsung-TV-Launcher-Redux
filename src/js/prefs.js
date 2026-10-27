@@ -24,9 +24,15 @@
             },
             screensaver: {
                 enabled: true,
-                delay: '5m',            // see Screensaver.DELAYS
-                photoEvery: '75s',      // see Screensaver.PHOTO_EVERY
-                dark: '1h'              // see Screensaver.DARK_AFTER
+                delay: '5m',            // see Screensaver.DELAYS; a number means minutes
+                photoEvery: '75s',      // see Screensaver.PHOTO_EVERY; a number means seconds
+                source: 'all',          // 'all' | 'background' (see Settings ▸ Screen saver ▸ Photos)
+                transition: 'dark',     // 'dark' | 'crossfade'
+                transitionTime: '4s',   // see Screensaver.TRANSITION_TIMES; a number means seconds
+                fadeDepth: 100,         // percent; dark-fade target opacity
+                zoomAmount: 9,          // percent; 9 => scale 1.09
+                zoomSpeed: 16,          // seconds for one zoom leg
+                dark: '1h'              // see Screensaver.DARK_AFTER; a number means minutes
             },
             appearance: {
                 clock: '24h',           // '24h' | '12h'
