@@ -21,6 +21,9 @@
         { key: 'xbox', label: 'Xbox' },
         { key: 'switch', label: 'Nintendo Switch' },
         { key: 'wiiu', label: 'Wii U' },
+        { key: 'windows', label: 'Windows' },
+        { key: 'linux', label: 'Linux' },
+        { key: 'usb', label: 'USB' },
         { key: 'apple', label: 'Apple' },
         { key: '', label: 'None' }
     ];
@@ -112,9 +115,10 @@
         return [
             { label: 'Background', value: wallpaperSummary(), run: function () { UI.show('bg'); } },
             { label: 'Apps on Home', value: Home.homeItems().length + ' apps', run: function () { UI.show('homeapps'); } },
-            { label: 'Consoles', value: shown + ' on Home', run: function () { UI.show('consoles'); } },
+            { label: 'Connected Devices', value: shown + ' on Home', run: function () { UI.show('consoles'); } },
             { label: 'Appearance', value: Appearance.font(a.font).label + ' · ' + (a.clock === '12h' ? '12-hour' : '24-hour'), run: function () { UI.show('appearance'); } },
             { label: 'Navigation sound', value: soundSummary(), run: function () { UI.show('sound-settings'); } },
+            { label: 'Weather', value: weatherSummary(), run: function () { UI.show('weather'); } },
             { label: 'Screen saver', value: screensaverSummary(), run: function () { UI.show('screensaver-settings'); } },
             { label: 'Samsung Home', value: 'Smart Hub and TV settings', run: openSamsungHome },
             { label: 'Advanced', value: 'Refresh, reset, Lab', run: function () { UI.show('advanced'); } }
@@ -487,6 +491,100 @@
         UI.refresh();
     }
 
+    // ---------- Weather coordinates
+
+    function coordText(n) {
+        return (typeof n === 'number' && isFinite(n)) ? n.toFixed(4) : 'Not set';
+    }
+
+    function weatherSummary() {
+        var c = Weather.coordinates();
+        if (typeof c.latitude !== 'number' || typeof c.longitude !== 'number') return 'Set location';
+        return c.latitude.toFixed(4) + ', ' + c.longitude.toFixed(4);
+    }
+
+    function editWeatherCoord(which) {
+        var c = Weather.coordinates();
+        var isLat = which === 'latitude';
+        var current = isLat ? c.latitude : c.longitude;
+        var other = isLat ? c.longitude : c.latitude;
+        askNumber(
+            isLat ? 'Latitude' : 'Longitude',
+            typeof current === 'number' ? current : 0,
+            isLat ? -90 : -180,
+            isLat ? 90 : 180,
+            '°',
+            function (n) {
+                if (isLat) Weather.setCoordinates(n, other);
+                else Weather.setCoordinates(other, n);
+                UI.toast((isLat ? 'Latitude' : 'Longitude') + ' saved');
+            },
+            4
+        );
+    }
+
+    function weatherUnitMenu() {
+        var c = Weather.coordinates();
+        UI.menu('Units', [
+            {
+                label: 'Celsius (°C)',
+                checked: c.unit !== 'fahrenheit',
+                run: function () {
+                    Weather.setUnit('celsius');
+                    UI.show('weather', { back: true });
+                    UI.toast('Weather units: Celsius');
+                }
+            },
+            {
+                label: 'Fahrenheit (°F)',
+                checked: c.unit === 'fahrenheit',
+                run: function () {
+                    Weather.setUnit('fahrenheit');
+                    UI.show('weather', { back: true });
+                    UI.toast('Weather units: Fahrenheit');
+                }
+            }
+        ]);
+    }
+
+    function weatherRefresh() {
+        if (!Weather.configured()) {
+            UI.toast('Set latitude and longitude first');
+            return;
+        }
+        Weather.refresh(true);
+        UI.toast('Fetching weather…');
+    }
+
+    function weatherClear() {
+        UI.menu('Clear weather coordinates?', [
+            {
+                label: 'Clear',
+                run: function () {
+                    Weather.clear();
+                    UI.show('weather', { back: true });
+                    UI.toast('Weather coordinates cleared');
+                }
+            },
+            { label: 'Cancel' }
+        ]);
+    }
+
+    function weatherEntries() {
+        var c = Weather.coordinates();
+        return [
+            { label: 'Latitude', value: coordText(c.latitude), run: function () { editWeatherCoord('latitude'); } },
+            { label: 'Longitude', value: coordText(c.longitude), run: function () { editWeatherCoord('longitude'); } },
+            { label: 'Units', value: Weather.unitLabel(), run: weatherUnitMenu },
+            {
+                label: 'Refresh now',
+                value: Weather.configured() ? 'Fetch the current reading' : 'Set latitude and longitude first',
+                run: weatherRefresh
+            },
+            { label: 'Clear coordinates', value: '', run: weatherClear }
+        ];
+    }
+
     // ---------- Apps on Home editor (two columns, custom navigation)
 
     var ed = { col: 0, idx: [0, 0], moving: -1, snapshot: null, items: [], others: [] };
@@ -666,7 +764,7 @@
                 run: function () { adoptDetected(input.hdmi); }
             });
         });
-        entries.push({ label: '+ Add a console', value: '', run: addConsole });
+        entries.push({ label: '+ Add a device', value: '', run: addConsole });
         return entries;
     }
 
@@ -748,9 +846,9 @@
         var used = {};
         Home.inputs().forEach(function (i) { used[i.hdmi] = true; });
         var port = [1, 2, 3, 4].find(function (n) { return !used[n]; }) || 1;
-        editInputs(function (l) { l.push({ hdmi: port, label: 'Console', brand: '' }); });
+        editInputs(function (l) { l.push({ hdmi: port, label: 'Device', brand: '' }); });
         var index = Home.inputs().length - 1;
-        rename('Console', function (name) { editInputs(function (l) { l[index].label = name; }); });
+        rename('Device', function (name) { editInputs(function (l) { l[index].label = name; }); });
     }
 
     // A detected port becomes a normal entry, so it can have a name and a logo like a console.
@@ -781,15 +879,17 @@
         openValueDialog('Name', current, '', false, function (value) { done(value); });
     }
 
-    function askNumber(title, current, min, max, unit, done) {
+    function askNumber(title, current, min, max, unit, done, decimals) {
         var hint = 'Enter ' + min + '–' + max + (unit ? ' ' + unit : '');
+        var places = decimals == null ? 1 : decimals;
+        var factor = Math.pow(10, places);
         openValueDialog(title, current, hint, true, function (value) {
             var n = Number(String(value).replace(',', '.'));
             if (!isFinite(n) || n < min || n > max) {
                 UI.toast('Enter a number from ' + min + ' to ' + max + (unit ? ' ' + unit : ''));
                 return false;
             }
-            done(Math.round(n * 10) / 10);
+            done(Math.round(n * factor) / factor);
         });
     }
 
@@ -863,6 +963,7 @@
         registerList('settings', overviewEntries,
             [['OK', 'Change'], ['◀ ▶', 'Switch column'], ['Back', 'Home']], true);
         registerList('advanced', advancedEntries, [['OK', 'Run'], ['Back', 'Settings']]);
+        registerList('weather', weatherEntries, [['OK', 'Change'], ['Back', 'Settings']]);
         renderConsoles = registerList('consoles', consoleEntries,
             [['OK', 'Options'], ['Back', 'Settings']]);
 

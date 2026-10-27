@@ -35,12 +35,10 @@ window.LAUNCHER_CONFIG = {
 
     /*
      * Weather shown in the screen saver's corner, from Open-Meteo. No API key and nothing to
-     * keep secret, so this is the whole setup: put your own coordinates here (two decimals is
-     * plenty, and is also about as precise as you want a public request to be). Leave them null
-     * and the widget never appears.
-     *
-     * There is no Settings page for this on purpose — the TV does not move, and coordinates are
-     * not something you type with a remote.
+     * keep secret. These are the defaults: Settings ▸ Weather on the TV overrides latitude,
+     * longitude and units without a rebuild. Put a default here as well if you want a fresh
+     * install to have weather before the on-TV settings are opened. Leave them null and the
+     * widget never appears until coordinates are entered.
      */
     weather: {
         latitude: null,

@@ -19,3 +19,6 @@ Trademarks belong to their owners; used here only to identify apps and devices.
 - xbox.svg: https://raw.githubusercontent.com/elax46/custom-brand-icons/a53cabf49bf439023a8f33585af30d783bffe51b/icon-svg/xbox.svg (Custom Brand Icons, MIT)
 - apple.svg: local addition for this fork (Apple logo; trademark of Apple Inc.)
 - wiiu.svg: local addition for this fork (Wii U logo; trademark of Nintendo)
+- windows.svg: local addition for this fork (Microsoft Windows logo; trademark of Microsoft)
+- linux.svg: local addition for this fork (Tux, the Linux mascot)
+- usb.svg: local addition for this fork (USB trident)

@@ -1,14 +1,14 @@
 # Arn0 Launcher
 
-A quieter home screen for a Samsung Tizen TV: a clock, a row of your apps, a row of your consoles,
-and nothing else.
+A quieter home screen for a Samsung Tizen TV: a clock, a row of your apps, a row of your connected
+devices, and nothing else.
 
-![The launcher on the "Milky Way" wallpaper, showing the clock, an apps row and a consoles row](docs/preview.png)
+![The launcher on the "Milky Way" wallpaper, showing the clock, an apps row and a connected devices row](docs/preview.png)
 
 *The browser preview, with the bundled Manrope font and the "Milky Way" wallpaper.*
 
 I built this for one TV in my living room, a Samsung Q70B on Tizen 6.5, because its own home
-screen had become a shop. It does what I want: the apps I use, the consoles I own, driven by the normal remote. I am sharing it as a starting point rather than a product.
+screen had become a shop. It does what I want: the apps I use, the devices I own, driven by the normal remote. I am sharing it as a starting point rather than a product.
 
 **Use it at your own risk.** The optional Home-button setup changes TV preferences that Samsung
 does not document. See [the setup guide](docs/setup-tv.md) before using it.
@@ -40,18 +40,19 @@ are all real, while launching apps and switching HDMI inputs only do something o
 ## What you can change
 
 Everything in [`src/js/config.js`](src/js/config.js) is meant to be edited: which apps appear, which
-consoles and on which HDMI ports, how an input tile switches the TV, the locale, the starting
+devices and on which HDMI ports, how an input tile switches the TV, the locale, the starting
 wallpaper. Most of it is also editable from the launcher's own Settings once it is on the TV, and
 the TV's copy wins (`config.js` only supplies the defaults).
 
 Beyond config: tile colours and brand marks in [`src/js/brands.js`](src/js/brands.js), the whole
 look in [`src/css/style.css`](src/css/style.css), and your own photos as wallpapers.
 
-Anything specific to your own TV — weather coordinates, a devlog address — belongs in
-`src/js/config.local.js` instead. That file is gitignored and merged over `config.js` one level
-deep, so the tracked file keeps its nulls while the local one reaches both the browser preview and
-the packaged `.wgt`. Nothing to strip before a push, nothing to restore before a build. Copy
-[`config.local.example.js`](src/js/config.local.example.js) to start.
+Weather coordinates can be set in **Settings ▸ Weather** on the TV, or supplied as defaults in
+`src/js/config.local.js` (which also takes a devlog address). `config.local.js` is gitignored and
+merged over `config.js` one level deep, so the tracked file keeps its nulls while the local one
+reaches both the browser preview and the packaged `.wgt`. Nothing to strip before a push, nothing
+to restore before a build. Copy [`config.local.example.js`](src/js/config.local.example.js) to
+start.
 
 ## Coding agent prompt
 
@@ -132,7 +133,7 @@ src/                  everything that goes into the .wgt
   img/marks/          brand marks (Simple Icons CC0, Custom Brand Icons MIT; see SOURCES.md)
   img/tiles/          marks recoloured per brand (generated at build)
   img/wallpapers/     1920x1080 wallpapers with the readability scrim baked in (generated)
-  js/config.js        your apps, consoles, HDMI method, locale, theme
+  js/config.js        your apps, devices, HDMI method, locale, theme
   js/config.local.js  gitignored per-TV overrides, merged over config.js (not in the repo)
   js/brands.js        tile colours and marks per brand
   js/apps.js          list / filter / launch via tizen.application
@@ -164,13 +165,16 @@ Saved on the TV in `localStorage`. They survive restarts and in-place updates, n
 - **Background** — Off (plain gradient), one photo, or rotate: on each Home, 30 s, 5 min, 15 min,
   1 hour, daily.
 - **Apps on Home** — OK on an app opens Move / Remove; OK on the right-hand slot adds one.
-- **Consoles** — per console: rename (on-screen keyboard), HDMI port, logo, how it opens, hide,
-  reorder, remove; plus add a console. Connected HDMI ports the TV reports but that are not in the
+- **Connected Devices** — per input: rename (on-screen keyboard), HDMI port, logo
+  (PlayStation, Xbox, Switch, Wii U, Windows, Linux, USB, Apple, None), how it opens, hide,
+  reorder, remove; plus add a device. Connected HDMI ports the TV reports but that are not in the
   list appear here as **Detected · connected**, so they can be named without guessing the port.
 - **Appearance** — 24/12-hour clock, date shown/hidden, date language (English, Español, Français),
   font, app names (always / when selected / never).
 - **Navigation sound** — turn arrow-key sounds on or off, choose Soft, Warm or Bright, and preview
   the selected tone.
+- **Weather** — latitude, longitude, Celsius/Fahrenheit, refresh now and clear. Coordinates are
+  stored on the TV and override `config.js`; the reading appears in the screen saver corner.
 - **Screen saver** — on or off, start after 3/5/10/15 min idle on Home, **Photos: All wallpapers
   / Same as Background**, change photo every 60/75/90 s or 2/5 min, transition **Dark fade** or
   **Crossfade**, transition time 2/4/6 s, **Fade to black**, **Zoom amount**, **Zoom speed**, go
@@ -213,13 +217,15 @@ work even when Background is a single photo. **Same as Background** is the older
 leaves just the clock, Photo holds the chosen picture, Rotate cycles. The screen saver keeps its
 own position, so it never rewrites the wallpaper Home comes back to.
 
-The weather is off until you put coordinates in `config.local.js` (see **What you can change**). It comes from
-[Open-Meteo](https://open-meteo.com/), which needs no API key, and there is deliberately no
-Settings page for it: the TV does not move, and coordinates are not something you type with a
-remote. The reading is cached in `localStorage` so the screen saver opens with real numbers even
-after the TV has been off, it refreshes at most once an hour and only when something is about to
-show it, and anything older than three hours is treated as no reading at all — an unattended
-screen should go blank rather than state yesterday's temperature as if it were now.
+The weather is off until coordinates are entered in **Settings ▸ Weather** (or supplied as
+defaults in `config.js` / `config.local.js`). It comes from
+[Open-Meteo](https://open-meteo.com/), which needs no API key. Latitude and longitude accept four
+decimal places, and the page also chooses Celsius or Fahrenheit, fetches a reading on demand and
+can clear the coordinates. The reading is cached in `localStorage` so the screen saver opens with
+real numbers even after the TV has been off, it refreshes at most once an hour and only when
+something is about to show it, and anything older than three hours is treated as no reading at
+all — an unattended screen should go blank rather than state yesterday's temperature as if it
+were now.
 
 Everything in it moves, because a clock parked in one corner for an hour is a burn-in risk: the
 photo breathes — by default it zooms in 9% over 16 seconds, then back out over 16 seconds,
@@ -266,16 +272,16 @@ changes the source (privilege `tv.window`, public). What happens next is undocum
 - `inapp` — show the input full screen inside the launcher; Back returns to the dashboard. Probably
   no automatic Game Mode or VRR this way.
 
-The **Lab** screen (Blue) tries each method per console and reports what happened. The dot on each
+The **Lab** screen (Blue) tries each method per input and reports what happened. The dot on each
 tile is green when the TV reports that port as connected.
 
-The row is not limited to configured consoles. `config.js` ships `inputs: []`, which used to leave
+The row is not limited to configured devices. `config.js` ships `inputs: []`, which used to leave
 the row empty; the launcher now reads `VIDEOSOURCE` itself and shows every connected HDMI port as
 `HDMI n` (with a neutral screen glyph) even if it was never configured. It re-reads the list when
-Home is shown and every 30 seconds, so a console or computer plugged in later appears without a
-restart, and an unplugged one disappears. Settings ▸ Consoles lists those ports as **Detected ·
-connected**; opening one names it and turns it into a normal console entry (name, logo, method,
-hide/reorder). A configured entry always wins over auto-detection for the same port.
+Home is shown and every 30 seconds, so a device plugged in later appears without a restart, and an
+unplugged one disappears. Settings ▸ Connected Devices lists those ports as **Detected · connected**;
+opening one names it and turns it into a normal device entry (name, logo, method, hide/reorder).
+A configured entry always wins over auto-detection for the same port.
 
 To collect Lab results on your computer, point `devLogUrl` in `config.js` at it and run
 `npm run devlog`; entries land in `logs/tv.jsonl`. Set it to `null` to disable, which is the
@@ -328,7 +334,7 @@ TV where `db/menu/smart_hub/ontvsetting/auto_start` starts at `0`.
 
 ## Local restyle and additions (this fork)
 
-Installed on the TV as `TvLaunch01.Launcher` **0.6.18** (signed build; `dist/` is gitignored).
+Installed on the TV as `TvLaunch01.Launcher` **0.6.20** (signed build; `dist/` is gitignored).
 
 The complete upstream comparison — new features, changed behaviour and what is deliberately not
 published — is in **[docs/FORK-CHANGES.md](docs/FORK-CHANGES.md)**.
@@ -344,55 +350,59 @@ the All-apps grid keep their original sizes.
   TizenTube (shown as "YouTube") and AirPlay. Xbox, TizenBrew and Samsung TV Plus
   were removed from Home; TV Plus is also disabled at TV level. TizenBrew remains
   in All-apps.
-- `src/img/marks/apple.svg`, `src/img/marks/wiiu.svg` — added marks, selectable per
-  console in Settings ▸ Consoles ▸ Logo. Wii U is copied as-is because its colours
-  are part of the mark; `scripts/build-marks.mjs` supports a `precolored` brand.
+- `src/img/marks/{apple,wiiu,windows,linux,usb}.svg` — added marks, selectable per
+  input in Settings ▸ Connected Devices ▸ Logo. Wii U, Windows and Linux are copied
+  as-is because their colours are part of the mark; the others are recoloured per
+  brand at build time; `scripts/build-marks.mjs` supports a `precolored` brand.
 
 The default wallpaper only applies to a fresh install; an existing TV keeps its
 saved choice, so change it in **Settings ▸ Background**. Preview with
 `npm run preview`, then rebuild and sign as usual before deploying.
 
-### 0.6.18 — connected outputs, adjustable zoom and a slow dark fade
+### 0.6.20 — Connected Devices, weather coordinates and more marks
 
-![Home with detected HDMI 2 / HDMI 4 tiles, then the screen saver at 4, 8, 12, 16, 20, 24 and 32 seconds](docs/preview-home-zoom.png)
+![The launcher Home with a CONNECTED DEVICES row showing Windows, Linux and USB tiles](docs/preview-home-0.6.20.png)
 
-*Browser preview: the HDMI row now fills itself, and the screen saver zooms in to 1.09× and back
-out over 16 seconds each way.*
+*Home: the second row is now headed **CONNECTED DEVICES**, with the new Windows, Linux and USB
+marks alongside the existing set.*
 
-- **Connected outputs on Home.** `config.js` ships `inputs: []`, so the second
-  row used to stay empty until a console was added by hand — which is why a
-  console or computer on HDMI did not appear. The launcher now asks the TV for
-  its `VIDEOSOURCE` list, adds a tile for every connected HDMI port as `HDMI n`,
-  re-checks when Home is shown and every 30 seconds, and drops a port when it is
-  unplugged. Settings ▸ Consoles lists those ports as **Detected · connected**, so
-  one can be renamed (for example "Games console") and given a logo; once adopted it
-  behaves like any configured console.
-- **Screen saver zoom.** The photo breathes: it zooms in by a configurable amount
-  (default 9%) at a configurable speed (default 16 s per leg), then back out,
-  repeating, with a small sideways drift.
-- **Screen saver transition.** **Dark fade** (the default) dims the picture to a
-  configurable black level, swaps the photo under the black, and reveals it;
-  **Crossfade** overlaps the two layers. Transition time, fade depth, photo
-  interval, start delay and go-dark time all have **Custom…** numeric fields.
-- **Brand marks.** Apple and Wii U were added to the logo picker
-  (`src/img/marks/apple.svg`, `src/img/marks/wiiu.svg`). Wii U keeps its own
-  grey/blue colours; the other marks are recoloured per brand at build time.
-- **The 60 s fix.** A saved interval previously did nothing when Background was on
-  **Photo**, because the screen saver followed the Home choice. Photos now defaults
-  to **All wallpapers**, so the screen saver is a slideshow independent of Home;
-  **Same as Background** restores the old behaviour. This is why the saved 60 s
-  now changes the photo after 60 s.
-- Preview the screen saver directly at `http://localhost:8080/#screensaver`; the
-  hash is ignored on the TV.
+- **Connected Devices.** The Home row heading and the Settings page are now named **Connected
+  Devices** (the internal view and app IDs are unchanged). The page still holds consoles and
+  detected HDMI inputs; only the user-facing name changed.
+- **Weather settings.** Settings ▸ **Weather** now takes latitude and longitude (four decimal
+  places), Celsius/Fahrenheit, refreshes on demand and can clear the coordinates. Values are stored
+  in the launcher's prefs on the TV, override `config.js`, and appear in the screen saver corner.
+- **More marks.** **Windows**, **Linux** (Tux) and **USB** were added to the logo picker, alongside
+  **Apple** and **Wii U**. Windows and Linux keep their own colours; USB is recoloured per brand at
+  build time.
+- **Screen saver motion and transition.** The photo breathes by **Zoom amount** (default 9%) at
+  **Zoom speed** (default 16 s per leg), changing with **Dark fade** (default) or **Crossfade**
+  over **Transition time**. **Fade to black**, the photo interval, start delay and go-dark time all
+  have **Custom…** numeric fields.
+- **The 60 s fix.** A saved interval previously did nothing when Background was on **Photo**,
+  because the screen saver followed the Home choice. Photos now defaults to **All wallpapers**, so
+  the screen saver is a slideshow independent of Home; **Same as Background** restores the old
+  behaviour.
+- Preview the screen saver directly at `http://localhost:8080/#screensaver`; the hash is ignored
+  on the TV.
 
-![The Screen saver settings page: top and scrolled views](docs/preview-settings-0.6.18.png)
+![The main Settings page listing Connected Devices and Weather](docs/preview-settings-0.6.20.png)
+
+*Settings ▸ Connected Devices and Settings ▸ Weather are the two new/changed entries.*
+
+![The Weather page with the Latitude number dialog open](docs/preview-weather-0.6.20.png)
+
+*Weather: latitude and longitude open the same number dialog as the motion settings; it validates
+the −90…90 / −180…180 range and keeps four decimals.*
+
+![The Screen saver settings page: top and scrolled views](docs/preview-screensaver-0.6.20.png)
 
 *The page scrolls with the remote. Every numeric row ends with **Custom…**.*
 
 ![The Custom number dialog for Change photo every, showing 75 and the allowed range 10–3600 s](docs/preview-custom-dialog.png)
 
-*Custom… opens the same on-screen keyboard the console renamer uses, accepts one decimal place,
-and keeps the dialog open with a toast if the number is outside the range.*
+*Custom… opens the same on-screen keyboard the rename dialog uses, accepts one decimal place, and
+keeps the dialog open with a toast if the number is outside the range.*
 
 ![A dark fade from Snowy valley to Forest path: before, fading down, black at the swap, then the reveal](docs/preview-dark-fade.png)
 

@@ -34,6 +34,11 @@
                 zoomSpeed: 16,          // seconds for one zoom leg
                 dark: '1h'              // see Screensaver.DARK_AFTER; a number means minutes
             },
+            weather: {
+                latitude: null,         // null = use config.js; Settings ▸ Weather overrides
+                longitude: null,
+                unit: null              // null = config.js unit; 'celsius' | 'fahrenheit'
+            },
             appearance: {
                 clock: '24h',           // '24h' | '12h'
                 showDate: true,
@@ -61,6 +66,7 @@
                 merge(prefs.sound, saved.sound);
                 merge(prefs.wallpaper, saved.wallpaper);
                 merge(prefs.screensaver, saved.screensaver);
+                merge(prefs.weather, saved.weather);
                 merge(prefs.appearance, saved.appearance);
                 if (Array.isArray(saved.home) && saved.home.length) prefs.home = saved.home;
                 if (Array.isArray(saved.inputs)) prefs.inputs = saved.inputs;

@@ -1,8 +1,11 @@
 /*
  * Weather for the screen saver, from Open-Meteo. No API key, free for non-commercial use.
  *
- * Coordinates come from js/config.js and default to null, which disables the widget entirely.
- * They are not a Settings page: the TV does not move, and nobody types coordinates with a remote.
+ * Coordinates default to null, which disables the widget entirely. They can be set on the TV in
+ * Settings ▸ Weather; the values there override the config.js defaults, so a new TV can be
+ * configured without rebuilding. The TV does not move, and coordinates are not something you
+ * normally type with a remote — hence the number dialog, which is still the least painful way to
+ * do it when there is no config.local.js on the set.
  *
  * There is no polling. A TV launcher spends most of its life in the background with JavaScript
  * paused, so a timer would be both useless and rude; instead the reading is refreshed when
@@ -81,12 +84,23 @@
 
     // ---------- Configuration
 
-    function cfg() {
+    function baseWeather() {
         return (window.LAUNCHER_CONFIG && window.LAUNCHER_CONFIG.weather) || {};
     }
 
+    // Settings ▸ Weather wins; config.js supplies the defaults for a fresh install.
+    function weatherSettings() {
+        var base = baseWeather();
+        var p = (Prefs.get() && Prefs.get().weather) || {};
+        return {
+            latitude: typeof p.latitude === 'number' ? p.latitude : base.latitude,
+            longitude: typeof p.longitude === 'number' ? p.longitude : base.longitude,
+            unit: p.unit || base.unit || 'celsius'
+        };
+    }
+
     function configured() {
-        var c = cfg();
+        var c = weatherSettings();
         return typeof c.latitude === 'number' && typeof c.longitude === 'number';
     }
 
@@ -136,7 +150,7 @@
     // ---------- Fetching
 
     function url() {
-        var c = cfg();
+        var c = weatherSettings();
         return ENDPOINT +
             '?latitude=' + encodeURIComponent(c.latitude) +
             '&longitude=' + encodeURIComponent(c.longitude) +
@@ -206,10 +220,51 @@
     function start() {
         load();
         if (!configured()) {
-            DevLog.log('Weather off: set weather.latitude and weather.longitude in js/config.js');
+            DevLog.log('Weather off: set coordinates in Settings ▸ Weather');
             return;
         }
         refresh();
+    }
+
+    // ---------- Settings hooks
+
+    // A different location or unit makes the cached reading wrong, not merely old.
+    function invalidate() {
+        reading = null;
+        try {
+            localStorage.removeItem(STORE_KEY);
+        } catch (e) {
+            // Nothing to remove.
+        }
+        listeners.forEach(function (fn) { fn(); });
+    }
+
+    function setCoordinates(latitude, longitude) {
+        var p = Prefs.get().weather;
+        p.latitude = (typeof latitude === 'number' && isFinite(latitude)) ? latitude : null;
+        p.longitude = (typeof longitude === 'number' && isFinite(longitude)) ? longitude : null;
+        Prefs.save();
+        invalidate();
+        if (configured()) refresh(true);
+    }
+
+    function setUnit(unit) {
+        Prefs.get().weather.unit = unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+        Prefs.save();
+        invalidate();
+        if (configured()) refresh(true);
+    }
+
+    function clear() {
+        var p = Prefs.get().weather;
+        p.latitude = null;
+        p.longitude = null;
+        Prefs.save();
+        invalidate();
+    }
+
+    function unitLabel() {
+        return weatherSettings().unit === 'fahrenheit' ? 'Fahrenheit (°F)' : 'Celsius (°C)';
     }
 
     window.Weather = {
@@ -217,6 +272,11 @@
         refresh: refresh,
         current: current,
         configured: configured,
+        coordinates: weatherSettings,
+        setCoordinates: setCoordinates,
+        setUnit: setUnit,
+        clear: clear,
+        unitLabel: unitLabel,
         // Exposed so Home can reuse the same marks if weather ever moves there too.
         icon: icon,
         group: group,
@@ -226,7 +286,7 @@
                 label: 'Weather: fetch now and log the reading',
                 run: function () {
                     if (!configured()) {
-                        UI.toast('No coordinates in config.js');
+                        UI.toast('Set weather coordinates in Settings');
                         return;
                     }
                     DevLog.log('Weather: requesting ' + url());

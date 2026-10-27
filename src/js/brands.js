@@ -24,7 +24,10 @@ window.BRANDS = [
     { key: 'playstation', mark: 'playstation', bg: 'linear-gradient(135deg,#00205c,#0070d1)', fg: '#fff' },
     { key: 'xbox', mark: 'xbox', bg: 'linear-gradient(135deg,#0a3a0a,#16a016)', fg: '#fff' },
     { key: 'switch', mark: 'nintendoswitch', bg: 'linear-gradient(135deg,#b3000e,#ff2a2a)', fg: '#fff' },
-    { key: 'wiiu', mark: 'wiiu', precolored: true, bg: 'linear-gradient(135deg,#101014,#23252b)', fg: '#fff' }
+    { key: 'wiiu', mark: 'wiiu', precolored: true, bg: 'linear-gradient(135deg,#101014,#23252b)', fg: '#fff' },
+    { key: 'windows', match: /windows/i, mark: 'windows', precolored: true, bg: 'linear-gradient(135deg,#071c2e,#0f4c81)', fg: '#fff' },
+    { key: 'linux', match: /linux/i, mark: 'linux', precolored: true, bg: 'linear-gradient(135deg,#141414,#2d2d2d)', fg: '#fff' },
+    { key: 'usb', match: /usb/i, mark: 'usb', bg: 'linear-gradient(135deg,#1e293b,#334155)', fg: '#fff' }
 ];
 
 window.findBrand = function (keyOrApp) {

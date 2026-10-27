@@ -7,7 +7,7 @@
  * restating the rest of the block. Arrays (apps, inputs) replace the default wholesale.
  */
 window.LAUNCHER_LOCAL = {
-    // Open-Meteo needs coordinates; two decimals is about a kilometre, which is finer than its grid.
+    // Open-Meteo defaults. Settings ▸ Weather on the TV can override these without a rebuild.
     // weather: { latitude: 20, longitude: 2 },
 
     // Receives Lab logs; see scripts/devlog-server.mjs.

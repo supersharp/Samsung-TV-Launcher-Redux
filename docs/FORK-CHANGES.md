@@ -2,7 +2,7 @@
 
 This repository is a fork of the Arn0 launcher (MIT) described in [the launcher README](../README.md).
 It keeps the upstream 1920×1080, remote-only web app, and changes the Home composition, the input
-row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.18** on a Samsung TV
+row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.20** on a Samsung TV
 (Tizen 6.0, Chromium 110/120 web engine).
 
 The upstream sections of `README.md` are retained so the original design notes still make sense.
@@ -12,25 +12,27 @@ This document is the comparison: what is new, what changed, and what is delibera
 
 | Area | Upstream Arn0 launcher | This fork |
 | --- | --- | --- |
-| Home composition | Clock, apps shelf, consoles shelf; section headings | Hero + low rails, static rose/violet veil, smaller clock, headings hidden |
+| Home composition | Clock, apps shelf, consoles shelf; section headings | Hero + low rails, static rose/violet veil, smaller clock, **Connected Devices** label |
 | Home apps | Upstream defaults | TizenTube shown as "YouTube", AirPlay, All apps |
-| HDMI row | Only consoles configured in `config.js` | Configured consoles **plus** live HDMI ports discovered from `VIDEOSOURCE` |
-| Detected inputs | — | Shown as `HDMI n`; adopt/named from Settings ▸ Consoles |
+| HDMI row | Only consoles configured in `config.js` | Configured devices **plus** live HDMI ports discovered from `VIDEOSOURCE` |
+| Detected inputs | — | Shown as `HDMI n`; adopt/named from Settings ▸ Connected Devices |
 | Input status | Dot on configured tiles | Same dot; discovery refreshes on Home and every 30 s |
 | Screen saver motion | Slow `translate()` pan | Breathing zoom, amount and speed configurable |
 | Photo transition | 2 s crossfade | Dark fade (default) or crossfade; depth and duration configurable |
 | Photo source | Follows Background | All wallpapers (default) or Same as Background |
 | Screen-saver settings | Presets only | Presets + a **Custom…** number field for every numeric value |
-| Settings layout | Fixed page | Scrollable page with remote-following focus |
-| Brand marks | Upstream set | Adds Apple and Wii U |
+| Settings layout | Fixed page | Scrollable screen-saver page with remote-following focus |
+| Weather | `config.js` only | Settings ▸ Weather: latitude, longitude, units, refresh, clear |
+| Brand marks | Upstream set | Adds Apple, Wii U, Windows, Linux and USB |
 | Native Home helper | Guarded helper in upstream `native/` | Not published here; local-only (see **What is not committed**) |
-| Package version | 0.2.0 | 0.6.18 |
+| Package version | 0.2.0 | 0.6.20 |
 
 ## Home screen
 
 - **Hero restyle.** The Home view is a full-bleed photo with a static two-stop veil, a smaller
-  clock, two low shelves, no shelf headings, and a restrained focus ring. Everything is scoped to
-  `#home`, so Settings tiles and the All-apps grid keep their upstream sizes.
+  clock, two low shelves, a **Connected Devices** label above the input row, and a restrained focus
+  ring. Everything is scoped to `#home`, so Settings tiles and the All-apps grid keep their upstream
+  sizes.
 - **Curated Home apps.** `config.js` ships TizenTube (labelled "YouTube") and AirPlay. Xbox,
   TizenBrew and Samsung TV Plus were removed from Home; TV Plus is disabled at TV level. TizenBrew
   remains in All apps.
@@ -41,8 +43,8 @@ This document is the comparison: what is new, what changed, and what is delibera
   Configured entries win; a hidden configured entry stays hidden.
 - **Discovery timing.** The list is read at start-up, when Home becomes visible, and every 30 s
   while Home is on screen. A port that disappears is dropped; a new one appears without a restart.
-- **Adopting a detected port.** Settings ▸ Consoles lists detected ports as
-  **Detected · connected**. Opening one creates a normal console entry and opens the rename dialog,
+- **Adopting a detected port.** Settings ▸ Connected Devices lists detected ports as
+  **Detected · connected**. Opening one creates a normal device entry and opens the rename dialog,
   so it can be named (for example "Games console"), given a logo, and assigned an open method.
 - **Focus stability.** Re-rendering after discovery keeps the focused input tile when possible; a
   periodic status refresh that only changes a dot does not rebuild the row.
@@ -111,24 +113,40 @@ toast.
 The Screen saver page now scrolls inside its own viewport; focus moves the page so the focused row
 stays visible. This was required once the motion and timing rows were added.
 
+## Weather
+
+- **Settings ▸ Weather** stores latitude and longitude in `arn0.prefs.v1`, overriding any defaults
+  in `config.js` / `config.local.js`.
+- Latitude accepts −90…90 and longitude −180…180, four decimal places, through the same number
+  dialog as the screen-saver timings. Units are Celsius or Fahrenheit, with Refresh now and Clear
+  coordinates.
+- The coordinates and unit invalidate the cached reading when changed, so the screen saver corner
+  cannot show the previous location's weather.
+- The Open-Meteo request, hourly freshness rule and three-hour staleness rule are unchanged from
+  upstream.
+
 ## Brand marks
 
 - **Apple** (`src/img/marks/apple.svg`, recoloured white by `scripts/build-marks.mjs`).
 - **Wii U** (`src/img/marks/wiiu.svg`, copied as-is because its grey/blue colours are part of the
-  mark; `build-marks.mjs` supports a `precolored` brand for this).
+  mark).
+- **Windows** (`src/img/marks/windows.svg`, copied as-is: blue).
+- **Linux** (`src/img/marks/linux.svg`, copied as-is: Tux).
+- **USB** (`src/img/marks/usb.svg`, recoloured white at build time).
 
-Both are selectable per console in Settings ▸ Consoles ▸ Logo. Trademarks belong to their owners;
-see `src/img/marks/SOURCES.md`.
+All are selectable per input in Settings ▸ Connected Devices ▸ Logo. Trademarks belong to their
+owners; see `src/img/marks/SOURCES.md`.
 
 ## Settings, data, and persistence
 
 - Everything is still stored in the TV's `localStorage` under `arn0.prefs.v1`; settings survive
   restarts and in-place updates, not an uninstall.
-- New screen-saver keys are additive. Existing installs without `source`, `fadeDepth`,
-  `zoomAmount`, `zoomSpeed` or the custom values get the defaults, so an update does not reset the
-  user's existing choices.
-- `config.local.js` remains the per-TV overlay for coordinates and a development-log address; it is
-  gitignored and is not part of the public repository.
+- New screen-saver and weather keys are additive. Existing installs without `source`, `fadeDepth`,
+  `zoomAmount`, `zoomSpeed`, the custom values or `weather` get the defaults, so an update does not
+  reset the user's existing choices.
+- `config.local.js` remains the per-TV overlay for weather defaults and a development-log address;
+  Settings ▸ Weather is the on-TV alternative for coordinates. It is gitignored and is not part of
+  the public repository.
 
 ## Packaging and permissions
 
@@ -140,7 +158,8 @@ see `src/img/marks/SOURCES.md`.
 - The signed `.wgt` is produced outside the repository with a Samsung developer certificate and is
   installed with `pkgcmd` over the relay. Signing material is never committed.
 - The fork uses `scripts/build-marks.mjs` to regenerate `src/img/tiles/` from the source marks. The
-  supplied Apple/Wii U marks live in `src/img/marks/`, not directly in the generated tiles folder.
+  added Apple, Wii U, Windows, Linux and USB marks live in `src/img/marks/`, not directly in the
+  generated tiles folder.
 
 ## What is not committed (sanitisation)
 
