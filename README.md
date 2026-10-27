@@ -49,6 +49,10 @@ No new Tizen privileges.
 
 ![Home Layout settings](docs/preview-home-layout.png)
 
+**Apps on Home**
+
+![Apps on Home with Samsung Home in the Add apps list](docs/preview-apps-on-home.png)
+
 **Background**
 
 ![Background motion settings, top and scrolled views](docs/preview-background.png)
