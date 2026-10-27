@@ -570,9 +570,22 @@
         ]);
     }
 
+    function applyWeatherPreset(p) {
+        Weather.setCoordinates(p.latitude, p.longitude);
+        UI.show('weather', { back: true });
+        UI.toast('Weather set to ' + p.label);
+    }
+
     function weatherEntries() {
         var c = Weather.coordinates();
-        return [
+        var rows = Weather.presets().map(function (p) {
+            return {
+                label: p.label,
+                value: 'Preset · ' + p.latitude.toFixed(4) + ', ' + p.longitude.toFixed(4),
+                run: function () { applyWeatherPreset(p); }
+            };
+        });
+        rows.push(
             { label: 'Latitude', value: coordText(c.latitude), run: function () { editWeatherCoord('latitude'); } },
             { label: 'Longitude', value: coordText(c.longitude), run: function () { editWeatherCoord('longitude'); } },
             { label: 'Units', value: Weather.unitLabel(), run: weatherUnitMenu },
@@ -582,7 +595,8 @@
                 run: weatherRefresh
             },
             { label: 'Clear coordinates', value: '', run: weatherClear }
-        ];
+        );
+        return rows;
     }
 
     // ---------- Apps on Home editor (two columns, custom navigation)

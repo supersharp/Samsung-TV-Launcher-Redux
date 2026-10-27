@@ -174,7 +174,8 @@ Saved on the TV in `localStorage`. They survive restarts and in-place updates, n
 - **Navigation sound** — turn arrow-key sounds on or off, choose Soft, Warm or Bright, and preview
   the selected tone.
 - **Weather** — latitude, longitude, Celsius/Fahrenheit, refresh now and clear. Coordinates are
-  stored on the TV and override `config.js`; the reading appears in the screen saver corner.
+  stored on the TV and override `config.js`; the reading appears in the screen saver corner. Named
+  presets supplied in `config.local.js` appear as rows above Latitude.
 - **Screen saver** — on or off, start after 3/5/10/15 min idle on Home, **Photos: All wallpapers
   / Same as Background**, change photo every 60/75/90 s or 2/5 min, transition **Dark fade** or
   **Crossfade**, transition time 2/4/6 s, **Fade to black**, **Zoom amount**, **Zoom speed**, go
@@ -334,7 +335,7 @@ TV where `db/menu/smart_hub/ontvsetting/auto_start` starts at `0`.
 
 ## Local restyle and additions (this fork)
 
-Installed on the TV as `TvLaunch01.Launcher` **0.6.20** (signed build; `dist/` is gitignored).
+Installed on the TV as `TvLaunch01.Launcher` **0.6.21** (signed build; `dist/` is gitignored).
 
 The complete upstream comparison — new features, changed behaviour and what is deliberately not
 published — is in **[docs/FORK-CHANGES.md](docs/FORK-CHANGES.md)**.
@@ -408,6 +409,13 @@ keeps the dialog open with a toast if the number is outside the range.*
 
 *Dark fade at the default 4 s: 2 s down, 2 s reveal. The clock and caption sit above the black, so
 they stay readable throughout.*
+
+### 0.6.21 — local weather presets
+
+Any named presets supplied by the gitignored `src/js/config.local.js` appear at the top of
+Settings ▸ Weather, above Latitude. Selecting one sets both coordinates and refreshes the reading;
+the preset values are local to that TV and are not part of the public repository. See
+[`config.local.example.js`](src/js/config.local.example.js) for the shape.
 
 ## Licence and credits
 

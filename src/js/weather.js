@@ -104,6 +104,17 @@
         return typeof c.latitude === 'number' && typeof c.longitude === 'number';
     }
 
+    // Optional named presets supplied by config.local.js (or config.js); each must be complete.
+    function presets() {
+        var list = baseWeather().presets;
+        if (!Array.isArray(list)) return [];
+        return list.filter(function (p) {
+            return p && typeof p.label === 'string' &&
+                typeof p.latitude === 'number' && isFinite(p.latitude) &&
+                typeof p.longitude === 'number' && isFinite(p.longitude);
+        });
+    }
+
     // ---------- Cache
 
     var reading = null;
@@ -273,6 +284,7 @@
         current: current,
         configured: configured,
         coordinates: weatherSettings,
+        presets: presets,
         setCoordinates: setCoordinates,
         setUnit: setUnit,
         clear: clear,

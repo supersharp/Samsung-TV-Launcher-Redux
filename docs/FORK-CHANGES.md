@@ -2,7 +2,7 @@
 
 This repository is a fork of the Arn0 launcher (MIT) described in [the launcher README](../README.md).
 It keeps the upstream 1920×1080, remote-only web app, and changes the Home composition, the input
-row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.20** on a Samsung TV
+row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.21** on a Samsung TV
 (Tizen 6.0, Chromium 110/120 web engine).
 
 The upstream sections of `README.md` are retained so the original design notes still make sense.
@@ -25,7 +25,7 @@ This document is the comparison: what is new, what changed, and what is delibera
 | Weather | `config.js` only | Settings ▸ Weather: latitude, longitude, units, refresh, clear |
 | Brand marks | Upstream set | Adds Apple, Wii U, Windows, Linux and USB |
 | Native Home helper | Guarded helper in upstream `native/` | Not published here; local-only (see **What is not committed**) |
-| Package version | 0.2.0 | 0.6.20 |
+| Package version | 0.2.0 | 0.6.21 |
 
 ## Home screen
 
@@ -120,6 +120,8 @@ stays visible. This was required once the motion and timing rows were added.
 - Latitude accepts −90…90 and longitude −180…180, four decimal places, through the same number
   dialog as the screen-saver timings. Units are Celsius or Fahrenheit, with Refresh now and Clear
   coordinates.
+- Optional named presets in `config.local.js` appear as rows above Latitude; selecting one sets
+  both coordinates. They are local to the TV and are not part of the public repository.
 - The coordinates and unit invalidate the cached reading when changed, so the screen saver corner
   cannot show the previous location's weather.
 - The Open-Meteo request, hourly freshness rule and three-hour staleness rule are unchanged from
