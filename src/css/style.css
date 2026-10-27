@@ -76,14 +76,58 @@ html, body {
     transform-origin: 0 0;
 }
 
-#bg {
+#bg,
+#bg-next {
     position: absolute;
     top: 0;
     left: 0;
     width: 1920px;
     height: 1080px;
-    background: var(--bg) url("../img/bg.jpg") center / cover no-repeat;
-    will-change: transform;
+    background-color: var(--bg);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    transform-origin: 50% 50%;
+    animation: bg-breathe var(--bg-zoom-ms, 16s) ease-in-out infinite alternate;
+    will-change: transform, opacity;
+}
+
+#bg {
+    background-image: url("../img/bg.jpg");
+}
+
+#bg-next {
+    opacity: 0;
+}
+
+#bg-veil,
+#bg-fade {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+#bg-veil {
+    background: linear-gradient(
+        180deg,
+        rgba(70, 30, 110, 0.55) 0%,
+        rgba(40, 16, 64, 0.20) 36%,
+        rgba(12, 6, 24, 0.48) 68%,
+        rgba(6, 3, 12, 0.90) 100%
+    );
+}
+
+#bg-fade {
+    background: #000;
+    opacity: 0;
+}
+
+@keyframes bg-breathe {
+    from { transform: scale(1); }
+    to { transform: scale(calc(1 + var(--bg-zoom, 0))); }
 }
 
 .view {
@@ -571,6 +615,12 @@ h1, h2 {
 }
 
 #screensaver-body {
+    top: 0;
+    transition: transform 0.18s ease-out;
+    will-change: transform;
+}
+
+#bg-body {
     top: 0;
     transition: transform 0.18s ease-out;
     will-change: transform;
@@ -1194,21 +1244,7 @@ html.preview, html.preview body {
 }
 
 /* Static veil: darker at the top and bottom, clear through the middle. */
-#bg::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    background: linear-gradient(
-        180deg,
-        rgba(70, 30, 110, 0.55) 0%,
-        rgba(40, 16, 64, 0.20) 36%,
-        rgba(12, 6, 24, 0.48) 68%,
-        rgba(6, 3, 12, 0.90) 100%
-    );
-}
+/* The veil is a separate layer so it stays above both crossfade images. */
 
 /* ---------- Quieter clock ---------- */
 

@@ -19,8 +19,15 @@
             wallpaper: {
                 mode: theme.wallpaper ? 'photo' : 'off',   // 'off' | 'photo' | 'rotate'
                 photo: theme.wallpaper || 'forest',
-                interval: '15m',        // see Wallpaper.INTERVALS
-                lastChange: 0
+                interval: '15m',        // see Wallpaper.INTERVALS; a number means seconds
+                lastChange: 0,
+                // Background motion, mirroring the screen saver's controls. Instant/0 keeps the
+                // old Home behaviour until the user opts into a transition or zoom.
+                transition: 'none',     // 'none' | 'dark' | 'crossfade'
+                transitionTime: '4s',   // see Screensaver.TRANSITION_TIMES; a number means seconds
+                fadeDepth: 100,
+                zoomAmount: 0,
+                zoomSpeed: 16
             },
             screensaver: {
                 enabled: true,

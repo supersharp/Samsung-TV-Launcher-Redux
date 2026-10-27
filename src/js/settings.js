@@ -147,8 +147,90 @@
 
     // ---------- Background
 
-    function renderBackground() {
+    function backgroundMotionBlocks() {
         var p = Prefs.get().wallpaper;
+        return [
+            {
+                id: 'bg-transition',
+                title: 'Transition',
+                key: 'transition',
+                options: [['none', 'Instant'], ['dark', 'Dark fade'], ['crossfade', 'Crossfade']]
+            },
+            {
+                id: 'bg-transition-time',
+                title: 'Transition time',
+                key: 'transitionTime',
+                options: Screensaver.TRANSITION_TIMES.map(function (o) { return [o.key, o.label]; }),
+                custom: {
+                    title: 'Transition time (seconds)', min: 0.5, max: 30, unit: 's', decimals: 1,
+                    get: function () { return Wallpaper.transitionSec(); },
+                    set: function (n) { p.transitionTime = n; },
+                    format: function (n) { return n + ' s'; }
+                }
+            },
+            {
+                id: 'bg-fade-depth',
+                title: 'Fade to black',
+                key: 'fadeDepth',
+                options: [[100, '100 %'], [85, '85 %'], [70, '70 %']],
+                custom: {
+                    title: 'Fade to black (percent)', min: 0, max: 100, unit: '%', decimals: 0,
+                    get: function () { return Wallpaper.fadeDepth(); },
+                    set: function (n) { p.fadeDepth = n; },
+                    format: function (n) { return n + ' %'; }
+                }
+            },
+            {
+                id: 'bg-zoom-amount',
+                title: 'Zoom amount',
+                key: 'zoomAmount',
+                options: [[0, 'Off'], [5, '5 %'], [9, '9 %'], [15, '15 %']],
+                custom: {
+                    title: 'Zoom amount (percent)', min: 0, max: 40, unit: '%', decimals: 0,
+                    get: function () { return Wallpaper.zoomAmount(); },
+                    set: function (n) { p.zoomAmount = n; },
+                    format: function (n) { return n + ' %'; }
+                }
+            },
+            {
+                id: 'bg-zoom-speed',
+                title: 'Zoom speed',
+                key: 'zoomSpeed',
+                options: [[10, '10 s'], [16, '16 s'], [25, '25 s']],
+                custom: {
+                    title: 'Zoom speed (seconds per leg)', min: 1, max: 120, unit: 's', decimals: 0,
+                    get: function () { return Wallpaper.zoomSpeed(); },
+                    set: function (n) { p.zoomSpeed = n; },
+                    format: function (n) { return n + ' s'; }
+                }
+            }
+        ];
+    }
+
+    function renderBackgroundMotion(block, p) {
+        var box = $(block.id);
+        if (!box) return;
+        box.innerHTML = '';
+        block.options.forEach(function (o) {
+            box.appendChild(chip(o[1], p[block.key] === o[0], { kind: 'motion', key: block.key, value: o[0] }));
+        });
+        if (block.custom) {
+            var active = typeof p[block.key] === 'number' && !block.options.some(function (o) {
+                return o[0] === p[block.key];
+            });
+            box.appendChild(chip(
+                active ? 'Custom · ' + block.custom.format(p[block.key]) : 'Custom…',
+                active,
+                { kind: 'custom', custom: block.custom }
+            ));
+        }
+    }
+
+    function renderBackground(opts) {
+        var p = Prefs.get().wallpaper;
+        var body = $('bg-body');
+        var viewport = $('bg-viewport');
+        var keep = (!opts || opts.back) ? (body._scroll || 0) : 0;
 
         var modes = $('bg-mode');
         modes.innerHTML = '';
@@ -161,6 +243,18 @@
         Wallpaper.INTERVALS.forEach(function (i) {
             intervals.appendChild(chip(i.label, p.interval === i.key, { kind: 'interval', key: i.key }));
         });
+        var customInterval = {
+            title: 'Change every (seconds)', min: 10, max: 86400, unit: 's', decimals: 0,
+            get: function () { return Math.round(Wallpaper.interval(p.interval).ms / 1000); },
+            set: function (n) { p.interval = n; p.lastChange = Date.now(); },
+            format: function (n) { return Wallpaper.interval(n).label; }
+        };
+        var intervalCustom = typeof p.interval === 'number';
+        intervals.appendChild(chip(
+            intervalCustom ? 'Custom · ' + Wallpaper.interval(p.interval).label : 'Custom…',
+            intervalCustom,
+            { kind: 'custom', custom: customInterval }
+        ));
         $('bg-interval-block').classList.toggle('hidden', p.mode !== 'rotate');
 
         var photos = $('bg-photos');
@@ -175,6 +269,29 @@
             photos.appendChild(t);
         });
         $('bg-photos-block').classList.toggle('hidden', p.mode !== 'photo');
+
+        backgroundMotionBlocks().forEach(function (block) { renderBackgroundMotion(block, p); });
+
+        var max = Math.max(0, body.scrollHeight - (viewport ? viewport.clientHeight : 0));
+        var y = Math.min(Math.max(0, keep), max);
+        body._scroll = y;
+        body.style.transform = y ? 'translateY(' + (-y) + 'px)' : '';
+    }
+
+    function scrollToBackgroundBlock(target) {
+        var block = target.closest ? target.closest('.setting-block') : null;
+        var body = $('bg-body');
+        var viewport = $('bg-viewport');
+        if (!block || !body || !viewport) return;
+        var top = block.offsetTop;
+        var bottom = top + block.offsetHeight;
+        var height = viewport.clientHeight;
+        var scroll = body._scroll || 0;
+        if (top < scroll) scroll = top;
+        else if (bottom > scroll + height) scroll = bottom - height;
+        scroll = Math.min(Math.max(0, scroll), Math.max(0, body.scrollHeight - height));
+        body._scroll = scroll;
+        body.style.transform = scroll ? 'translateY(' + (-scroll) + 'px)' : '';
     }
 
     function activateBackground(item) {
@@ -182,15 +299,30 @@
         if (item.kind === 'mode') {
             p.mode = item.key;
             if (item.key === 'rotate') p.lastChange = Date.now();
+            Prefs.save();
+            Wallpaper.apply();
         } else if (item.kind === 'interval') {
             p.interval = item.key;
             p.lastChange = Date.now();
+            Prefs.save();
         } else if (item.kind === 'photo') {
             p.photo = item.key;
+            Prefs.save();
+            Wallpaper.apply();
+        } else if (item.kind === 'motion') {
+            p[item.key] = item.value;
+            Prefs.save();
+            Wallpaper.motion();
+        } else if (item.kind === 'custom') {
+            var c = item.custom;
+            askNumber(c.title, c.get(), c.min, c.max, c.unit, function (n) {
+                c.set(n);
+                Prefs.save();
+                Wallpaper.apply();
+            }, c.decimals || 0);
+            return;
         }
-        Prefs.save();
-        Wallpaper.apply();
-        renderBackground();
+        renderBackground({ back: true });
         UI.refresh();
     }
 
@@ -1026,6 +1158,7 @@
             el: $('bg-settings'),
             rows: function () { return chipRows($('bg-body')); },
             onShow: renderBackground,
+            onFocus: scrollToBackgroundBlock,
             activate: activateBackground,
             hints: [['OK', 'Select'], ['Back', 'Settings']]
         });

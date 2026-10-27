@@ -9,6 +9,9 @@
 <body>
     <div id="stage">
         <div id="bg"></div>
+        <div id="bg-next"></div>
+        <div id="bg-veil"></div>
+        <div id="bg-fade"></div>
 
         <section id="home" class="view">
             <header class="clock">
@@ -51,18 +54,40 @@
 
         <section id="bg-settings" class="view page hidden">
             <header class="page-head"><h1>Background</h1></header>
-            <div id="bg-body" class="settings-body">
-                <div class="setting-block">
-                    <h2>Wallpaper</h2>
-                    <div id="bg-mode" class="chips"></div>
-                </div>
-                <div id="bg-interval-block" class="setting-block">
-                    <h2>Change every</h2>
-                    <div id="bg-interval" class="chips"></div>
-                </div>
-                <div id="bg-photos-block" class="setting-block">
-                    <h2>Photo</h2>
-                    <div id="bg-photos" class="thumbs"></div>
+            <div id="bg-viewport" class="settings-viewport">
+                <div id="bg-body" class="settings-body compact">
+                    <div class="setting-block">
+                        <h2>Wallpaper</h2>
+                        <div id="bg-mode" class="chips"></div>
+                    </div>
+                    <div id="bg-interval-block" class="setting-block">
+                        <h2>Change every</h2>
+                        <div id="bg-interval" class="chips"></div>
+                    </div>
+                    <div id="bg-photos-block" class="setting-block">
+                        <h2>Photo</h2>
+                        <div id="bg-photos" class="thumbs"></div>
+                    </div>
+                    <div class="setting-block">
+                        <h2>Transition</h2>
+                        <div id="bg-transition" class="chips"></div>
+                    </div>
+                    <div class="setting-block">
+                        <h2>Transition time</h2>
+                        <div id="bg-transition-time" class="chips"></div>
+                    </div>
+                    <div class="setting-block">
+                        <h2>Fade to black</h2>
+                        <div id="bg-fade-depth" class="chips"></div>
+                    </div>
+                    <div class="setting-block">
+                        <h2>Zoom amount</h2>
+                        <div id="bg-zoom-amount" class="chips"></div>
+                    </div>
+                    <div class="setting-block">
+                        <h2>Zoom speed</h2>
+                        <div id="bg-zoom-speed" class="chips"></div>
+                    </div>
                 </div>
             </div>
         </section>
