@@ -400,6 +400,21 @@
         $('date').textContent = Appearance.date(d);
     }
 
+    // The weather reading is shared with the screen saver; hide the line when there is none.
+    function renderHomeWeather() {
+        var box = $('home-weather');
+        if (!box) return;
+        var w = window.Weather && Weather.current();
+        if (!w) {
+            box.classList.add('hidden');
+            return;
+        }
+        $('home-wx-icon').innerHTML = w.icon;
+        $('home-wx-temp').textContent = w.temp;
+        $('home-wx-detail').textContent = w.detail;
+        box.classList.remove('hidden');
+    }
+
     // The TV takes ~4 s to list its ~450 apps, so Home is drawn from the last list we saw
     // and only redrawn if a fresh list differs.
     function readCache() {
@@ -528,6 +543,8 @@
         Appearance.apply();
         updateClock();
         setInterval(updateClock, 10000);
+        if (window.Weather) Weather.onUpdate(renderHomeWeather);
+        renderHomeWeather();
         renderLab();
         var cached = readCache();
         if (cached && cached.length) setApps(cached);
@@ -542,6 +559,7 @@
             }
             updateClock();
             refreshInputStatus();
+            renderHomeWeather();
             if (UI.isVisible('home')) Wallpaper.homeShown();
             if (Date.now() - state.lastFetch > REFRESH_AFTER_MS) setTimeout(loadApps, 1500);
         });

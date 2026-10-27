@@ -493,6 +493,8 @@
 
     // ---------- Weather coordinates
 
+    var renderWeatherPage = null;
+
     function coordText(n) {
         return (typeof n === 'number' && isFinite(n)) ? n.toFixed(4) : 'Not set';
     }
@@ -556,6 +558,38 @@
         UI.toast('Fetching weather…');
     }
 
+    function weatherReading() {
+        var w = Weather.current();
+        if (w) return w.temp + ' · ' + w.detail;
+        return Weather.configured() ? 'No reading yet' : 'Set coordinates first';
+    }
+
+    function weatherRefreshMenu() {
+        var current = Weather.refreshMinutes();
+        var options = [15, 30, 60, 180].map(function (n) {
+            var label = n === 60 ? 'Every hour' : (n === 180 ? 'Every 3 hours' : 'Every ' + n + ' min');
+            return {
+                label: label,
+                checked: current === n,
+                run: function () {
+                    Weather.setRefresh(n);
+                    UI.show('weather', { back: true });
+                    UI.toast('Weather refresh: ' + Weather.refreshLabel().toLowerCase());
+                }
+            };
+        });
+        options.push({
+            label: 'Custom…',
+            run: function () {
+                askNumber('Refresh every (minutes)', current, 5, 180, 'min', function (n) {
+                    Weather.setRefresh(n);
+                    UI.toast('Weather refresh: ' + Weather.refreshLabel().toLowerCase());
+                }, 0);
+            }
+        });
+        UI.menu('Refresh weather every', options);
+    }
+
     function weatherClear() {
         UI.menu('Clear weather coordinates?', [
             {
@@ -589,9 +623,10 @@
             { label: 'Latitude', value: coordText(c.latitude), run: function () { editWeatherCoord('latitude'); } },
             { label: 'Longitude', value: coordText(c.longitude), run: function () { editWeatherCoord('longitude'); } },
             { label: 'Units', value: Weather.unitLabel(), run: weatherUnitMenu },
+            { label: 'Refresh every', value: Weather.refreshLabel(), run: weatherRefreshMenu },
             {
                 label: 'Refresh now',
-                value: Weather.configured() ? 'Fetch the current reading' : 'Set latitude and longitude first',
+                value: weatherReading(),
                 run: weatherRefresh
             },
             { label: 'Clear coordinates', value: '', run: weatherClear }
@@ -977,7 +1012,13 @@
         registerList('settings', overviewEntries,
             [['OK', 'Change'], ['◀ ▶', 'Switch column'], ['Back', 'Home']], true);
         registerList('advanced', advancedEntries, [['OK', 'Run'], ['Back', 'Settings']]);
-        registerList('weather', weatherEntries, [['OK', 'Change'], ['Back', 'Settings']]);
+        renderWeatherPage = registerList('weather', weatherEntries, [['OK', 'Change'], ['Back', 'Settings']]);
+        Weather.onUpdate(function () {
+            if (renderWeatherPage && UI.isVisible('weather')) {
+                renderWeatherPage();
+                UI.refresh();
+            }
+        });
         renderConsoles = registerList('consoles', consoleEntries,
             [['OK', 'Options'], ['Back', 'Settings']]);
 

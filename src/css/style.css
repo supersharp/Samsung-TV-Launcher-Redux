@@ -132,6 +132,37 @@ h1, h2 {
     color: var(--muted);
 }
 
+/* Weather reading under the Home clock; shown only when there is a usable reading. */
+.home-weather {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+    font-size: 24px;
+    color: rgba(243, 244, 246, 0.72);
+}
+
+.home-wx-icon svg {
+    display: block;
+    width: 34px;
+    height: 36px;
+    color: rgba(243, 244, 246, 0.9);
+}
+
+.home-wx-temp {
+    font-size: 30px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.home-wx-detail {
+    color: rgba(220, 224, 232, 0.68);
+}
+
+.home-weather.hidden {
+    display: none;
+}
+
 /* Appearance options */
 .no-date #date { display: none; }
 .names-never .app .label,
@@ -446,6 +477,21 @@ h1, h2 {
 
 .two-col .setting-row {
     margin-bottom: 0;
+}
+
+/* Weather has eight rows once local presets are present; compact it above the hint bar. */
+#weather .settings-list {
+    top: 200px;
+}
+
+#weather .setting-row {
+    padding: 16px 32px;
+    margin-bottom: 10px;
+    font-size: 32px;
+}
+
+#weather .setting-value {
+    font-size: 30px;
 }
 
 .setting-row {

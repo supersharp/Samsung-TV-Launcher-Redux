@@ -18,7 +18,9 @@
 
     var STORE_KEY = 'arn0.weather.v1';
     var ENDPOINT = 'https://api.open-meteo.com/v1/forecast';
-    var FRESH_MS = 60 * 60 * 1000;          // inside the hour, the cached reading will do
+    var DEFAULT_REFRESH_MIN = 60;           // default automatic refresh interval
+    var MIN_REFRESH_MIN = 5;
+    var MAX_REFRESH_MIN = 180;              // keep inside the 3-hour usability window
     var USABLE_MS = 3 * 60 * 60 * 1000;     // older than this counts as no reading at all
     var TIMEOUT_MS = 8000;
     var RETRY_MS = 10 * 60 * 1000;          // quiet period after a failed attempt
@@ -102,6 +104,16 @@
     function configured() {
         var c = weatherSettings();
         return typeof c.latitude === 'number' && typeof c.longitude === 'number';
+    }
+
+    function refreshMinutes() {
+        var v = Prefs.get().weather.refreshEvery;
+        if (typeof v !== 'number' || !isFinite(v)) return DEFAULT_REFRESH_MIN;
+        return Math.min(MAX_REFRESH_MIN, Math.max(MIN_REFRESH_MIN, v));
+    }
+
+    function refreshMs() {
+        return refreshMinutes() * 60 * 1000;
     }
 
     // Optional named presets supplied by config.local.js (or config.js); each must be complete.
@@ -188,10 +200,11 @@
     }
 
     /*
-     * The hourly rule is keyed on the last *successful* reading, so on its own it does not slow
+     * The refresh rule is keyed on the last *successful* reading, so on its own it does not slow
      * down retries: while the API is unreachable every trigger would ask again. This is the
      * backoff for that — a failed attempt buys ten minutes of quiet, which matters because the
-     * triggers are things the viewer controls (opening the screen saver) rather than a timer.
+     * triggers are things the viewer controls (opening the screen saver, returning to Home)
+     * rather than a tight timer.
      */
     function failed(why) {
         fetching = false;
@@ -199,10 +212,10 @@
         DevLog.log('Weather: ' + why);
     }
 
-    // force: ignore both rules (the Lab entry, so a test does not wait an hour).
+    // force: ignore the refresh interval and the failure backoff (manual refresh / Lab).
     function refresh(force) {
         if (!configured() || fetching) return;
-        if (!force && age() < FRESH_MS) return;
+        if (!force && age() < refreshMs()) return;
         if (!force && Date.now() - lastFailure < RETRY_MS) return;
         fetching = true;
         var xhr = new XMLHttpRequest();
@@ -230,6 +243,13 @@
 
     function start() {
         load();
+        // Poll once a minute while the app is visible; refresh() itself enforces the interval.
+        setInterval(function () {
+            if (!document.hidden) refresh();
+        }, 60 * 1000);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) refresh();
+        });
         if (!configured()) {
             DevLog.log('Weather off: set coordinates in Settings ▸ Weather');
             return;
@@ -274,6 +294,22 @@
         invalidate();
     }
 
+    function setRefresh(minutes) {
+        var n = Math.round(minutes);
+        n = Math.min(MAX_REFRESH_MIN, Math.max(MIN_REFRESH_MIN, n));
+        Prefs.get().weather.refreshEvery = n;
+        Prefs.save();
+        listeners.forEach(function (fn) { fn(); });
+        if (configured()) refresh();
+    }
+
+    function refreshLabel() {
+        var n = refreshMinutes();
+        if (n === 60) return 'Every hour';
+        if (n === 180) return 'Every 3 hours';
+        return 'Every ' + n + ' min';
+    }
+
     function unitLabel() {
         return weatherSettings().unit === 'fahrenheit' ? 'Fahrenheit (°F)' : 'Celsius (°C)';
     }
@@ -287,6 +323,9 @@
         presets: presets,
         setCoordinates: setCoordinates,
         setUnit: setUnit,
+        setRefresh: setRefresh,
+        refreshMinutes: refreshMinutes,
+        refreshLabel: refreshLabel,
         clear: clear,
         unitLabel: unitLabel,
         // Exposed so Home can reuse the same marks if weather ever moves there too.

@@ -37,7 +37,8 @@
             weather: {
                 latitude: null,         // null = use config.js; Settings ▸ Weather overrides
                 longitude: null,
-                unit: null              // null = config.js unit; 'celsius' | 'fahrenheit'
+                unit: null,             // null = config.js unit; 'celsius' | 'fahrenheit'
+                refreshEvery: 60        // minutes; 5-180, automatic refresh while visible
             },
             appearance: {
                 clock: '24h',           // '24h' | '12h'
