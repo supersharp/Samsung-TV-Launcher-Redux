@@ -34,6 +34,10 @@ No new Tizen privileges.
 
 ![Main Settings with Connected Devices and Weather entries](docs/preview-settings.png)
 
+**Background**
+
+![Background motion settings, top and scrolled views](docs/preview-background.png)
+
 **Screen saver**
 
 ![Screen saver settings, top and scrolled views](docs/preview-screensaver.png)
