@@ -1,6 +1,6 @@
 {
   "name": "arn0-tv-launcher",
-  "version": "0.6.24",
+  "version": "0.6.25",
   "private": true,
   "description": "Minimal remote-friendly launcher for a Samsung Tizen TV",
   "scripts": {

@@ -22,3 +22,4 @@ Trademarks belong to their owners; used here only to identify apps and devices.
 - windows.svg: local addition for this fork (Microsoft Windows logo; trademark of Microsoft)
 - linux.svg: local addition for this fork (Tux, the Linux mascot)
 - usb.svg: local addition for this fork (USB trident)
+- SamsungHome.svg: local addition for this fork (Samsung Smart Hub home icon; trademark of Samsung)

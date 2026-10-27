@@ -23,6 +23,16 @@
     };
 
     var inputListeners = [];
+    var SAMSUNG_HOME = 'com.samsung.tv.csfs';
+
+    function samsungHomeItem() {
+        return {
+            kind: 'app',
+            id: SAMSUNG_HOME,
+            label: 'Samsung Home',
+            brand: window.findBrand ? findBrand('samsunghome') : null
+        };
+    }
 
     // ---------- Tiles
 
@@ -207,7 +217,23 @@
     }
 
     function homeItems() {
-        return Apps.curated(state.apps, { apps: homeEntries() });
+        var entries = homeEntries();
+        var items = Apps.curated(state.apps, { apps: entries });
+        var present = {};
+        items.forEach(function (i) { present[i.id] = true; });
+        entries.forEach(function (entry) {
+            if (entry.id === SAMSUNG_HOME && !present[entry.id]) {
+                items.push(samsungHomeItem());
+                present[entry.id] = true;
+            }
+        });
+        items.forEach(function (item) {
+            if (item.id === SAMSUNG_HOME) {
+                item.label = 'Samsung Home';
+                item.brand = window.findBrand ? findBrand('samsunghome') : null;
+            }
+        });
+        return items;
     }
 
     function setHomeItems(items) {

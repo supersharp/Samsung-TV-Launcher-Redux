@@ -2,7 +2,7 @@
 
 This repository is a fork of the Arn0 launcher (MIT) described in [the launcher README](../README.md).
 It keeps the upstream 1920×1080, remote-only web app, and changes the Home composition, the input
-row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.24** on a Samsung TV
+row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.25** on a Samsung TV
 (Tizen 6.0, Chromium 110/120 web engine).
 
 The upstream sections of `README.md` are retained so the original design notes still make sense.
@@ -15,7 +15,7 @@ This document is the comparison: what is new, what changed, and what is delibera
 | Home composition | Clock, apps shelf, consoles shelf; section headings | Hero + low rails, static rose/violet veil, smaller clock, **Connected Devices** label |
 | Background motion | Instant wallpaper change | Instant/Dark fade/Crossfade, fade depth, zoom amount/speed, custom interval |
 | Home layout | Fixed clock, clock left, apps above devices | Small/Medium/Large app and device tiles, either row on top, clock/settings sides swapped, clock or weather hidden |
-| Home apps | Upstream defaults | TizenTube shown as "YouTube", AirPlay, All apps |
+| Home apps | Upstream defaults | TizenTube shown as "YouTube", AirPlay, All apps; optional Samsung Home shortcut |
 | HDMI row | Only consoles configured in `config.js` | Configured devices **plus** live HDMI ports discovered from `VIDEOSOURCE` |
 | Detected inputs | — | Shown as `HDMI n`; adopt/named from Settings ▸ Connected Devices |
 | Input status | Dot on configured tiles | Same dot; discovery refreshes on Home and every 30 s |
@@ -27,7 +27,7 @@ This document is the comparison: what is new, what changed, and what is delibera
 | Weather | `config.js` only | Settings ▸ Weather with coordinates, units, refresh interval, Home + screen-saver reading, optional local presets |
 | Brand marks | Upstream set | Adds Apple, Wii U, Windows, Linux and USB |
 | Native Home helper | Guarded helper in upstream `native/` | Not published here; local-only (see **What is not committed**) |
-| Package version | 0.2.0 | 0.6.24 |
+| Package version | 0.2.0 | 0.6.25 |
 
 ## Home screen
 
@@ -45,6 +45,9 @@ This document is the comparison: what is new, what changed, and what is delibera
 - **Curated Home apps.** `config.js` ships TizenTube (labelled "YouTube") and AirPlay. Xbox,
   TizenBrew and Samsung TV Plus were removed from Home; TV Plus is disabled at TV level. TizenBrew
   remains in All apps.
+- **Samsung Home shortcut.** Apps on Home lists Samsung Home as an addable tile even though it is a
+  system action rather than a consumer app. It launches `com.samsung.tv.csfs`, exactly like
+  Settings ▸ Samsung Home, and uses `src/img/marks/SamsungHome.svg`.
 - **Live HDMI outputs.** Upstream only showed an input if it was written into `config.js`, and
   `config.js` ships `inputs: []`; a console or computer plugged into HDMI therefore did not appear.
   The fork reads `tizen.systeminfo.getPropertyValue('VIDEOSOURCE')`, filters `type === 'HDMI'`, and

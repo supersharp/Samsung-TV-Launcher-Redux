@@ -853,6 +853,16 @@
         var onHome = {};
         ed.items.forEach(function (i) { onHome[i.id] = true; });
         ed.others = Apps.allSorted(Home.apps(), false).filter(function (a) { return !onHome[a.id]; });
+        // Samsung Home is a system action, not necessarily a consumer app in the installed list.
+        ed.others = ed.others.filter(function (a) { return a.id !== SAMSUNG_HOME; });
+        if (!onHome[SAMSUNG_HOME]) {
+            ed.others.unshift({
+                kind: 'app',
+                id: SAMSUNG_HOME,
+                label: 'Samsung Home',
+                brand: findBrand('samsunghome')
+            });
+        }
     }
 
     function edRow(item, moving) {

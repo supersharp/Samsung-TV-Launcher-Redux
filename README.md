@@ -1,7 +1,14 @@
 # Arn0 Launcher — TV fork
 
 A fork of the Arn0 launcher (MIT) for a Samsung Tizen TV: a 1920×1080, remote-only web app.
-Current package: `TvLaunch01.Launcher` **0.6.24**.
+Current package: `TvLaunch01.Launcher` **0.6.25**.
+
+**Compatibility.** Upstream Arn0 targets **Tizen 6.5** (Q70B, Chromium 85). This fork was tested on
+a **QE65QN95A** (`T-NKM2DEUC-2301.1`, Tizen 6.0) with **Chromium 110.0.5415.0 / 120.0.6099.5**,
+mounted at boot by `/usr/bin/chromium-efl-install` from
+`/opt/usr/apps/org.tizen.chromium-efl/res/chromium-efl.img` — the staged upgrade copied from
+`/opt/usr/apps/org.tizen.chromium-efl-upgrade/res/chromium-efl.img`. Workspace details:
+`docs/CHROMIUM-ENGINE-UPGRADE.md` (not part of this public repo).
 
 ![The launcher home with weather under the clock and a Connected Devices row showing Windows, Linux and USB](docs/preview-home.png)
 
@@ -11,6 +18,8 @@ Current package: `TvLaunch01.Launcher` **0.6.24**.
   unconfigured ones as `HDMI n`; Settings ▸ Connected Devices names, logos, opens, hides or
   reorders them.
 - **Brand marks** — Apple, Wii U, Windows, Linux and USB added to the logo picker.
+- **Samsung Home shortcut** — Apps on Home can add a Samsung Home tile using the supplied logo;
+  it launches `com.samsung.tv.csfs`, the same action as Settings ▸ Samsung Home.
 - **Home restyle** — hero/low-rails layout, smaller clock, and a trimmed Home row (TizenTube as
   YouTube, AirPlay, All apps).
 - **Background motion** — the same Instant / Dark fade / Crossfade, transition time, fade depth
