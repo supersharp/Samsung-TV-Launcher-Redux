@@ -7,8 +7,7 @@ Current package: `TvLaunch01.Launcher` **0.6.25**.
 a **QE65QN95A** (`T-NKM2DEUC-2301.1`, Tizen 6.0) with **Chromium 110.0.5415.0 / 120.0.6099.5**,
 mounted at boot by `/usr/bin/chromium-efl-install` from
 `/opt/usr/apps/org.tizen.chromium-efl/res/chromium-efl.img` — the staged upgrade copied from
-`/opt/usr/apps/org.tizen.chromium-efl-upgrade/res/chromium-efl.img`. Workspace details:
-`docs/CHROMIUM-ENGINE-UPGRADE.md` (not part of this public repo).
+`/opt/usr/apps/org.tizen.chromium-efl-upgrade/res/chromium-efl.img`.
 
 ![The launcher home with weather under the clock and a Connected Devices row showing Windows, Linux and USB](docs/preview-home.png)
 
