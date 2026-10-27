@@ -1,32 +1,29 @@
 # Putting it on a TV
 
-> **Public fork note.** This repository contains the web launcher only. The optional native
-> Home/startup helper and the per-device baseline are not published here, so the native half below
-> is retained from the original project for reference. The launcher works installed as an ordinary
-> web app, without changing the Home button.
+> **Public fork note.** This repository contains the web launcher only. The Home/startup changes
+> in Part 2 were made on the tested TV with device-specific root tooling and a boot stub; that
+> tooling, its certificates and the per-device baseline are not published here. Part 1 works as an
+> ordinary web app without them.
 
 This guide has two halves. The first installs the launcher as an ordinary web app, which is
-reversible by uninstalling it. The second changes which app the TV treats as Home and starts at
-power-on, which is reversible only if you keep a baseline. Read the second half completely before
-running any part of it.
+reversible by uninstalling it. The second records the Home and power-on setup used on the tested
+TV; it is not a copyable public procedure. Read Part 2 completely before changing anything.
 
-**Everything here was tested on one TV.** The native helpers check for a 32-bit process, UID 901,
-and the expected firmware string. They do not check the TV's model, and a matching firmware string
-does not prove another model is compatible. Do not weaken or change these guards to make the
-helper run elsewhere; the calls have not been validated on other hardware.
-
-## Reference device
+## Tested device
 
 | | |
 | --- | --- |
-| Model | QE65Q70BATXXC (Samsung Q70B, 2022) |
-| Firmware | T-PTMDEUC-1720.7 |
-| Platform | Tizen 6.5, armv7 / 32-bit |
-| Launcher app id | `Arn0Lnchr0.Launcher` |
-| Developer user | UID 901, no root |
+| Model | `QE65QN95AATXXU` (2021 Neo QLED, platform `21_NIKEM2_QTV`) |
+| Software | `T-NKM2DEUC-2310.0` (build `T-NKM2DEUC-REL-202607211844`, 2026-07-21) |
+| Platform | Tizen 6.0.0, armv7 / 32-bit |
+| Web engine | `chromium-efl 0.3.63120` — Chromium 110.0.5415.0 / 120.0.6099.5; stock `1.1.76` (Chromium 76) preload untouched |
+| Launcher | `TvLaunch01.Launcher`, package `TvLaunch01`, version 0.6.25 |
+| Home / startup | `TvLaunch01.Launcher`, via the app-context DB and vconf; `ghservice` boot stub |
+| Access | Developer Mode on; per-command root relay; SMACK `User` scope |
 
-No compatibility claim for any other model, year or firmware. Tizen 7/8/9 TVs, The Frame, and
-other regions' firmware are all untested here.
+No compatibility claim for any other model, year or firmware. The upstream Arn0 reference was a
+Q70B on Tizen 6.5; this fork's tested device is a different model and Tizen version. Tizen 7/8/9
+TVs, The Frame, and other regions' firmware are untested here.
 
 ## Part 1 — install the launcher
 
@@ -38,12 +35,14 @@ Prerequisites: Node.js 20+, and the TV in Developer Mode on the same network.
    npm run build          # -> dist/arn0-launcher.wgt
    ```
 
-2. Install it. Either Apps2Samsung's **Custom WGT File** option, or Tizen Studio's CLI. Use the
-   same Samsung author certificate/profile used for the existing installation when updating.
-   Apps2Samsung certificate options depend on its version and signing setup; do not assume that
-   **Force Samsung certificate** should always be on or always be off. If an update reports an
-   author-certificate mismatch, preserve the current install and resolve signing consistency
-   before uninstalling, since uninstalling clears the launcher's saved settings.
+2. Install it. On this TV the signed WGT was pushed to `/tmp` and installed with `pkgcmd` over the
+   root relay. On an ordinary TV, use Apps2Samsung's **Custom WGT File** option or Tizen Studio's
+   CLI instead.
+
+   The app id is `TvLaunch01.Launcher`; the package id is `TvLaunch01`. Use the same Samsung author
+   certificate when updating. If an update reports an author-certificate mismatch, preserve the
+   current install and fix signing consistency before uninstalling, since uninstalling clears the
+   launcher's saved settings.
 
 3. Open it from the Samsung app list and check it works: apps launch, HDMI tiles switch inputs,
    Settings saves across a restart.
@@ -52,138 +51,63 @@ Stop here if you only want the dashboard. You can open it manually from the app 
 nothing about the TV's own behaviour has changed. **Part 2 is not required for the launcher to
 work** — it only removes the manual step.
 
-## Part 2 — Home button and power-on
+## Part 2 — Home button and power-on (tested TV)
 
-### What this actually does
+**This is not a public, copyable procedure.** The table below records what changed on
+`QE65QN95AATXXU`; the scripts, relay, certificates and baseline are not in this repository.
 
-There is no public web-app API for assigning the remote's Home button. On the tested setup, the
-existing Developer Mode connection provided a way to run the guarded helper on the TV as UID 901
-(not root). The helper uses platform C APIs to read and update the preferences associated with
-the `main` app-control operation and Home app id. This is undocumented TV behavior, not a
-supported consumer API.
+There is no public web-app API for assigning the remote's Home button or first-screen app. On this
+TV the Home key and first-screen values live in Samsung's app-context database and vconf, and boot
+is triggered by the `com.samsung.tv.ghservice` service slot. The changes were made with the TV's
+per-command root relay and then verified by reading the values back.
 
-Two small .NET console assemblies in [native/](../native/) do exactly that and nothing else:
-
-- **`Query.cs`** → `Arn0HomeQuery`. Read-only. Prints the current values and exits. It cannot
-  write anything; there is no write call in the file.
-- **`Control.cs`** → `Arn0HomeControl`. Takes `query`, `verify`, `apply` or `restore`.
-
-Both refuse to start unless all three guards pass: the process is 32-bit, `getuid()` is 901, and
-`/etc/prd_info.ini` contains the expected firmware string. Any mismatch aborts before a single
-value is read.
-
-`apply` changes the Home operation and `home_appid`; it also writes the saved `auto_start` value
-back unchanged:
-
-| Setting | From | To |
+| Setting | Stock | On this TV |
 | --- | --- | --- |
-| `main` app-control operation (via `app_operation_set_current_app`) | `com.samsung.tv.csfs` | `Arn0Lnchr0.Launcher` |
-| `db/appfw/home_appid` | `com.samsung.tv.csfs` | `Arn0Lnchr0.Launcher` |
-| `db/menu/smart_hub/ontvsetting/auto_start` | saved baseline (`1` on reference TV) | same value |
+| `key_filter` `XF86Home` in `/opt/dbspace/.app-context.db` | `package:com.samsung.tv.csfs`, args `entry_point:smarthub_key` | `package:TvLaunch01.Launcher` (args unchanged) |
+| `db/appfw/home_appid` (vconf) | `org.tizen.tv-viewer` | `TvLaunch01.Launcher` |
+| `db/appfw/booting_appid_backup` (vconf) | `org.tizen.tv-viewer` | `TvLaunch01.Launcher` |
+| `db/first_screen/type` (vconf) | `com.samsung.tv.csfs` | `TvLaunch01.Launcher` |
+| `main` app-control operation | `WykOS4t4F0.cmsWebApp` | `TvLaunch01.Launcher` |
+| `com.samsung.tv.ghservice` slot | stock DLL | 5,632 B stub; `app_onboot='true'`; calls `aul_launch_app("TvLaunch01.Launcher")` |
 
-It reads three further keys (`db/appfw/startup_appid`, `db/appfw/booting_appid_backup`,
-`db/first_screen/type`) into the baseline but does not write them. On the reference TV,
-`auto_start` was already `1` and remains `1`. The Home-button behavior was tested; the helper does
-not itself configure power-on behavior. Do not infer that setting `auto_start` to `1` is sufficient
-for startup on another model or firmware. If the saved value is `0`, stop before applying and
-research that configuration separately.
+The boot manager still foregrounds `org.tizen.tv-viewer` first; the `ghservice` stub launches the
+launcher afterwards. The stock Chromium 76 preload remains untouched; boot mounts the Chromium
+110/120 image from `/opt`.
 
-Safety properties worth knowing before you trust it:
+Things worth knowing before touching any of this:
 
-- Every write is followed by a read-back, and a mismatch throws.
-- `apply` refuses to run unless the current values match your saved baseline exactly, so it will
-  not stack on top of a half-finished previous run.
-- If anything fails mid-apply, it restores the baseline automatically and says so. If that restore
-  also fails it prints `URGENT:` and the underlying error.
-- `restore` refuses if a value changed to something that is neither the baseline nor the launcher,
-  on the grounds that something else has been editing these keys and you should look first.
-
-### Order of operations
-
-Do these in order. Do not skip step 2.
-
-1. **Connect.** `sdb connect <TV_IP>`, then `sdb devices` to confirm the TV accepted it. This is
-   a connection and changes nothing; `sdb disconnect` undoes it.
-
-2. **Query, read-only.** Build and run `Arn0HomeQuery` first, before `Arn0HomeControl` exists on
-   the TV at all. You are checking three things: the guards pass, the keys read back values you
-   recognise, and `launcher_boot_supported=1`. If that last one is `0`, the TV is telling you the
-   app is not eligible for boot and `apply` will refuse anyway — stop and investigate.
-
-   The repository contains the query source and project file, but does not include the private
-   SDB runner used for the reference-device session. A normal `sdb shell` is not sufficient on
-   this Samsung TV. Do not improvise a command or substitute a different execution method. Until
-   you have a reviewed runner that stages the helper, runs it under the expected UID, captures its
-   output, and cleans up temporary files, treat the native helper as source for review rather
-   than a ready-to-run procedure. The runner must verify the exact device and firmware before any
-   invocation.
-
-3. **Save the baseline.** Write the query output to a JSON file off the TV, in the shape
-   `Control.cs` expects:
-
-   The following is only the reference TV's baseline. **Do not copy these values as your own**;
-   use the exact values returned by your TV's query.
-
-   ```json
-   {
-     "Home": "com.samsung.tv.csfs",
-     "Strings": {
-       "db/appfw/home_appid": "com.samsung.tv.csfs",
-       "db/appfw/startup_appid": "com.samsung.tv.csfs",
-       "db/appfw/booting_appid_backup": "com.samsung.tv.csfs",
-       "db/first_screen/type": "com.samsung.tv.csfs"
-     },
-     "Autostart": 1
-   }
-   ```
-
-   Keep it somewhere you will still have it after a bad evening — not only on the TV, and not only
-   in the repo. `.gitignore` deliberately excludes these files; a baseline is per-device and
-   publishing mine would help nobody.
-
-4. **Verify the baseline.** Run `Arn0HomeControl verify <baseline.json>`. It compares the live
-   values against the file and prints `ARN0_BASELINE_MATCH=` on success. This proves the file is
-   readable, correctly shaped, and actually matches the TV before anything is written.
-
-5. **Apply.** Only after query and baseline verification, run `Arn0HomeControl apply
-   <baseline.json>` through the reviewed, device-guarded runner. A successful result prints
-   `ARN0_APPLIED=` and includes a read-back of the Home operation, `home_appid`, and `auto_start`.
-   Test Home from another app. The helper does not change power-on settings; validate cold-start
-   behavior separately before claiming it works.
-
-6. **Know your way back.** `Arn0HomeControl restore <baseline.json>` restores all saved Home and
-   startup values and prints `ARN0_RESTORED=`. Use the same reviewed runner that ran the query and
-   apply operations.
+- Install the launcher before mapping the Home key. Updating the app preserves its settings;
+  uninstalling clears them.
+- The upstream Q70B native helper (`Arn0HomeQuery` / `Arn0HomeControl`, UID 901, firmware
+  `T-PTMDEUC`, app id `Arn0Lnchr0.Launcher`) is **not used on this TV** and does not apply. Do not
+  substitute it for the method above.
+- If you repeat this on another TV, find the equivalent keys read-only, save a baseline off the
+  TV, write with a read-back and automatic rollback, and keep a route back to the TV's own menus.
+  Do not copy this device's values as your own.
+- The root tooling is deliberately outside the public repo. The firmware guard, certificates,
+  relay token and baseline are device-specific.
 
 ## Recovery
 
-In rough order of how much you have to lose:
-
-- **Home goes somewhere unexpected, TV otherwise fine.** Run `restore` through the same reviewed
-  runner. This is the normal recovery path and is why the baseline must be saved off the TV.
-- **The launcher misbehaves.** Restore the baseline before uninstalling the launcher, if the
-  developer connection and runner are available. Do not rely on uninstalling an app that is still
-  assigned as Home to make the TV recover automatically.
-- **You cannot reach the TV over `sdb`.** Developer Mode is toggled from the TV's own menus, which
-  are reachable through Samsung's Home — which is what you just redirected. Expect to work via the
-  launcher's **Settings → Samsung Home** entry, which opens `com.samsung.tv.csfs` and puts TV
-  settings one press away. Leaving that path in the launcher is not decoration; it is the reason
-  a bad apply is survivable.
-- If neither the launcher nor the developer connection is usable, use Samsung's documented
+- **Home goes somewhere unexpected.** Use the launcher's **Settings → Samsung Home** entry, which
+  opens `com.samsung.tv.csfs` and puts TV settings one press away. Keeping that entry is the route
+  back.
+- **The launcher misbehaves.** Restore the stock `ghservice` DLL and the five Home/startup values
+  from the baseline you saved off the TV. Do not rely on uninstalling an app that is still assigned
+  as Home to recover automatically.
+- **You cannot reach the TV over the relay or developer connection.** Use Samsung's documented
   consumer support/recovery path for the exact model. Do not enter the service menu or perform a
   factory reset based only on this guide.
-
-A firmware update can change or undo any of this. These are undocumented platform preferences,
-not an API with a compatibility promise. Re-run the read-only query after any firmware update
-before assuming the state is what you left.
+- **A firmware update can overwrite any of this.** These are undocumented platform preferences,
+  not an API with a compatibility promise. Re-check the values after an update.
 
 ## If you are forking this
 
-The honest summary: Part 1 transfers to any Tizen TV with modest effort. Part 2 does not transfer —
-it transfers as a *method*. The method is: find the keys read-only, save a baseline, write the two
-values with read-back, keep an automatic rollback, and keep a route back to the TV's own menus.
-The specific firmware string and app id in `native/` are mine and must become yours deliberately.
+Part 1 transfers to another Tizen TV with modest effort. Part 2 transfers only as a *method*:
+find the keys read-only, save a baseline, write the values with read-back, keep an automatic
+rollback, and keep a route back to the TV's own menus. The app id, firmware string, Home mapping
+and boot stub are specific to this device and must become yours deliberately.
 
-A coding agent is genuinely useful for the browser-preview and launcher work. For Part 2 it needs
-access to your actual TV on your local network, so a hosted chat that can only read this repo
-cannot do it. Ask it to query before it controls, and do not let it skip the baseline.
+The public repo intentionally contains no native helper, root tooling, certificates or device
+baseline. A coding agent can help with the browser preview and launcher work; it needs access to
+the actual TV for Part 2, and it should query before it controls.
