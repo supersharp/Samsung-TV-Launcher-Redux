@@ -124,6 +124,7 @@
             { label: 'Background', value: wallpaperSummary(), run: function () { UI.show('bg'); } },
             { label: 'Apps on Home', value: Home.homeItems().length + ' apps', run: function () { UI.show('homeapps'); } },
             { label: 'Connected Devices', value: shown + ' on Home', run: function () { UI.show('consoles'); } },
+            { label: 'Colour keys', value: colourSummary(), run: function () { UI.show('colour-keys'); } },
             { label: 'Appearance', value: Appearance.font(a.font).label + ' · ' + (a.clock === '12h' ? '12-hour' : '24-hour'), run: function () { UI.show('appearance'); } },
             { label: 'Navigation sound', value: soundSummary(), run: function () { UI.show('sound-settings'); } },
             { label: 'Home Layout', value: layoutSummary(), run: function () { UI.show('home-layout'); } },
@@ -1015,14 +1016,26 @@
     }
 
     function consoleEntries() {
-        var entries = Home.inputs().map(function (input, i) {
+        var entries = [{
+            label: 'Detected outputs',
+            value: Home.detectedEnabled() ? 'Shown on Home' : 'Hidden',
+            run: function () {
+                Prefs.get().detectedOutputs = !Home.detectedEnabled();
+                Prefs.save();
+                Home.renderHome();
+                Home.refreshInputStatus();
+                renderConsoles();
+                UI.refresh();
+            }
+        }];
+        entries = entries.concat(Home.inputs().map(function (input, i) {
             return {
                 label: input.label,
                 value: input.hidden ? 'Hidden' : 'HDMI ' + input.hdmi + ' · ' + methodOf(input).label,
                 mini: Home.miniInputTile(input),
                 run: function () { consoleMenu(i); }
             };
-        });
+        }));
         // Ports the TV reports live but that are not in the list yet (Home shows them as
         // "HDMI n"). Adopting one turns it into an ordinary, renamable console entry.
         Home.detectedInputs().forEach(function (input) {
@@ -1035,6 +1048,91 @@
         });
         entries.push({ label: '+ Add a device', value: '', run: addConsole });
         return entries;
+    }
+
+    // ---------- Colour keys
+
+    var renderColourKeys = null;
+    var COLOUR_NAMES = ['red', 'green', 'yellow', 'blue'];
+
+    function colourDefaultLabel(name) {
+        if (name === 'red') return 'All apps';
+        if (name === 'green') return 'Next wallpaper';
+        if (name === 'yellow') return 'Runner game';
+        return 'Lab';
+    }
+
+    function colourBindingLabel(name) {
+        var b = (Prefs.get().colourKeys || {})[name] || { type: 'default' };
+        if (b.type === 'none') return 'Do nothing';
+        if (b.type === 'app') return 'App · ' + (b.label || b.id);
+        if (b.type === 'input') return 'Device · ' + (b.label || ('HDMI ' + b.hdmi));
+        if (b.type === 'screensaver') return 'Screen saver';
+        if (b.type === 'settings') return 'Settings';
+        return 'Default · ' + colourDefaultLabel(name);
+    }
+
+    function colourSummary() {
+        var keys = Prefs.get().colourKeys || {};
+        var changed = COLOUR_NAMES.filter(function (n) { return keys[n] && keys[n].type !== 'default'; });
+        return changed.length ? changed.length + ' remapped' : 'Defaults';
+    }
+
+    function setColourBinding(name, action) {
+        Prefs.get().colourKeys[name] = action;
+        Prefs.save();
+        if (renderColourKeys) renderColourKeys();
+        UI.refresh();
+    }
+
+    function colourEntries() {
+        return COLOUR_NAMES.map(function (name) {
+            return {
+                label: name.charAt(0).toUpperCase() + name.slice(1),
+                value: colourBindingLabel(name),
+                run: function () { colourMenu(name); }
+            };
+        });
+    }
+
+    function colourMenu(name) {
+        var current = (Prefs.get().colourKeys || {})[name] || { type: 'default' };
+        var options = [
+            { label: 'Default · ' + colourDefaultLabel(name), checked: current.type === 'default',
+              run: function () { setColourBinding(name, { type: 'default' }); } },
+            { label: 'Do nothing', checked: current.type === 'none',
+              run: function () { setColourBinding(name, { type: 'none' }); } },
+            { label: 'Launch an app…', checked: current.type === 'app',
+              run: function () {
+                  Home.pickApp(function (item) {
+                      setColourBinding(name, { type: 'app', id: item.id, label: item.label });
+                      UI.show('colour-keys', { back: true });
+                  });
+              } },
+            { label: 'Open a device…', checked: current.type === 'input',
+              run: function () { colourInputMenu(name); } },
+            { label: 'Screen saver', checked: current.type === 'screensaver',
+              run: function () { setColourBinding(name, { type: 'screensaver' }); } },
+            { label: 'Settings', checked: current.type === 'settings',
+              run: function () { setColourBinding(name, { type: 'settings' }); } },
+            { label: 'Cancel' }
+        ];
+        UI.menu(name.charAt(0).toUpperCase() + name.slice(1) + ' key', options);
+    }
+
+    function colourInputMenu(name) {
+        var list = Home.inputs();
+        if (!list.length) { UI.toast('No devices configured'); return; }
+        var options = list.map(function (input) {
+            return {
+                label: input.label + ' · HDMI ' + input.hdmi,
+                run: function () {
+                    setColourBinding(name, { type: 'input', hdmi: input.hdmi, label: input.label });
+                }
+            };
+        });
+        options.push({ label: 'Cancel' });
+        UI.menu('Open which device?', options);
     }
 
     function editInputs(change) {
@@ -1242,6 +1340,8 @@
         });
         renderConsoles = registerList('consoles', consoleEntries,
             [['OK', 'Options'], ['Back', 'Settings']]);
+        renderColourKeys = registerList('colour-keys', colourEntries,
+            [['OK', 'Change'], ['Back', 'Settings']]);
 
         UI.register('bg', {
             el: $('bg-settings'),

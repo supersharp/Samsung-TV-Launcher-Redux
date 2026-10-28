@@ -2,11 +2,15 @@
 
 This repository is a fork of the Arn0 launcher (MIT) described in [the launcher README](../README.md).
 It keeps the upstream 1920×1080, remote-only web app, and changes the Home composition, the input
-row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.25** on a Samsung TV
+row, and the screen saver. The deployed package is `TvLaunch01.Launcher` **0.6.27** on a Samsung TV
 (Tizen 6.0, Chromium 110/120 web engine).
 
 The upstream sections of `README.md` are retained so the original design notes still make sense.
 This document is the comparison: what is new, what changed, and what is deliberately not here.
+
+It is used on a **heavily debloated TV** (most Samsung preloads and telemetry services disabled).
+Nothing in the launcher needs Smart Hub or a preloaded app: app listing uses `tizen.application`,
+HDMI uses `tizen.tvwindow` / `systeminfo`, and the rest is local storage.
 
 ## At a glance
 
@@ -16,9 +20,10 @@ This document is the comparison: what is new, what changed, and what is delibera
 | Background motion | Instant wallpaper change | Instant/Dark fade/Crossfade, fade depth, zoom amount/speed, custom interval |
 | Home layout | Fixed clock, clock left, apps above devices | Small/Medium/Large app and device tiles, either row on top, clock/settings sides swapped, clock or weather hidden |
 | Home apps | Upstream defaults | TizenTube shown as "YouTube", AirPlay, All apps; optional Samsung Home shortcut |
-| HDMI row | Only consoles configured in `config.js` | Configured devices **plus** live HDMI ports discovered from `VIDEOSOURCE` |
-| Detected inputs | — | Shown as `HDMI n`; adopt/named from Settings ▸ Connected Devices |
-| Input status | Dot on configured tiles | Same dot; discovery refreshes on Home and every 30 s |
+| HDMI row | Only consoles configured in `config.js` | Configured devices by default; **optional** live HDMI discovery |
+| Detected inputs | — | Opt-in; shown as `HDMI n` and adoptable from Settings ▸ Connected Devices |
+| Input status | Dot on configured tiles | Same dot; discovery refreshes on Home and every 30 s **only while the opt-in is on** |
+| Colour keys | Fixed shortcuts | Remappable in Settings ▸ Colour keys (app, device, screen saver, Settings, nothing) |
 | Screen saver motion | Slow `translate()` pan | Breathing zoom, amount and speed configurable |
 | Photo transition | 2 s crossfade | Dark fade (default) or crossfade; depth and duration configurable |
 | Photo source | Follows Background | All wallpapers (default) or Same as Background |
@@ -27,7 +32,7 @@ This document is the comparison: what is new, what changed, and what is delibera
 | Weather | `config.js` only | Settings ▸ Weather with coordinates, units, refresh interval, Home + screen-saver reading, optional local presets |
 | Brand marks | Upstream set | Adds Apple, Wii U, Windows, Linux and USB |
 | Native Home helper | Guarded helper in upstream `native/` | Not published here; local-only (see **What is not committed**) |
-| Package version | 0.2.0 | 0.6.25 |
+| Package version | 0.2.0 | 0.6.27 |
 
 ## Home screen
 
@@ -48,18 +53,47 @@ This document is the comparison: what is new, what changed, and what is delibera
 - **Samsung Home shortcut.** Apps on Home lists Samsung Home as an addable tile even though it is a
   system action rather than a consumer app. It launches `com.samsung.tv.csfs`, exactly like
   Settings ▸ Samsung Home, and uses `src/img/marks/SamsungHome.svg`.
-- **Live HDMI outputs.** Upstream only showed an input if it was written into `config.js`, and
-  `config.js` ships `inputs: []`; a console or computer plugged into HDMI therefore did not appear.
-  The fork reads `tizen.systeminfo.getPropertyValue('VIDEOSOURCE')`, filters `type === 'HDMI'`, and
-  appends any connected port that is not configured as an `HDMI n` tile with a neutral glyph.
-  Configured entries win; a hidden configured entry stays hidden.
-- **Discovery timing.** The list is read at start-up, when Home becomes visible, and every 30 s
-  while Home is on screen. A port that disappears is dropped; a new one appears without a restart.
-- **Adopting a detected port.** Settings ▸ Connected Devices lists detected ports as
-  **Detected · connected**. Opening one creates a normal device entry and opens the rename dialog,
-  so it can be named (for example "Games console"), given a logo, and assigned an open method.
+- **Connected Devices is opt-in.** Upstream, and this fork by default, shows only the inputs written
+  into `config.js` or edited in Settings. Settings ▸ Connected Devices adds **Detected outputs**
+  (Hidden by default). When set to **Shown on Home**, the launcher reads
+  `tizen.systeminfo.getPropertyValue('VIDEOSOURCE')`, filters `type === 'HDMI'`, and appends any
+  connected port that is not configured as an `HDMI n` tile with a neutral glyph. Configured entries
+  win; a hidden configured entry stays hidden.
+- **Discovery timing.** With the opt-in on, the list is read at start-up, when Home becomes visible,
+  and every 30 s while Home is on screen. A port that disappears is dropped; a new one appears
+  without a restart. With it off, only the status dots refresh.
+- **Adopting a detected port.** With the opt-in on, Settings ▸ Connected Devices lists detected
+  ports as **Detected · connected**. Opening one creates a normal device entry and opens the rename
+  dialog, so it can be named (for example "Games console"), given a logo, and assigned an open
+  method.
 - **Focus stability.** Re-rendering after discovery keeps the focused input tile when possible; a
   periodic status refresh that only changes a dot does not rebuild the row.
+
+## Colour keys
+
+Upstream binds the four colour keys to fixed actions. This fork makes them a preference:
+
+- **Settings ▸ Colour keys** has a row for Red, Green, Yellow and Blue. Each can be set to
+  **Default** (Red: All apps, Green: next wallpaper, Yellow: runner game, Blue: Lab), **Do nothing**,
+  **Launch an app…**, **Open a device…**, **Screen saver** or **Settings**.
+- **Launch an app…** opens All apps in a pick mode (header "Choose an app"); OK binds the focused
+  app, Back cancels. The binding stores the app id and label.
+- **Open a device…** lists the configured Connected Devices entries and stores the HDMI number.
+  If that device is later removed, the key shows a toast instead of switching.
+- Bindings are additive in `arn0.prefs.v1` (`colourKeys`); an existing install gets the defaults.
+- The runner game is unchanged, but its sprites and music are personal files that are gitignored.
+  When they are absent, the Yellow default shows "Game photos are not in this build" instead of the
+  game's error screen; bind another action or add the files to `src/img/easter-egg/` and `src/audio/`
+  before building.
+
+## Performance
+
+The **Dark fade / Crossfade** transitions and the **breathing zoom** are the expensive part of this
+fork: while Home is visible they keep the web engine animating a full-screen photo layer. That cost
+is intentional and Home-only. Opening an app or switching to a connected device backgrounds the
+launcher, and Chromium throttles it — measured **~0 % CPU** on the reference TV, so an app or an HDMI
+source is not affected by the choice of fade. If Home itself feels sluggish, set Background motion
+to **Instant** and the screen saver transition to **Instant**; both are per-setting, not global.
 
 ## Screen saver
 
@@ -160,8 +194,8 @@ owners; see `src/img/marks/SOURCES.md`.
 
 - Everything is still stored in the TV's `localStorage` under `arn0.prefs.v1`; settings survive
   restarts and in-place updates, not an uninstall.
-- New screen-saver and weather keys are additive. Existing installs without `source`, `fadeDepth`,
-  `zoomAmount`, `zoomSpeed`, the custom values or `weather` get the defaults, so an update does not
+- New screen-saver, weather and colour-key keys are additive. Existing installs without `source`, `fadeDepth`,
+  `zoomAmount`, `zoomSpeed`, the custom values, `weather` or `colourKeys` get the defaults, so an update does not
   reset the user's existing choices.
 - `config.local.js` remains the per-TV overlay for weather defaults and a development-log address;
   Settings ▸ Weather is the on-TV alternative for coordinates. It is gitignored and is not part of
@@ -200,7 +234,8 @@ address, so the contributor is credited without publishing a personal email addr
 
 ## What is unchanged
 
-- 1920×1080 stage, remote-only navigation, focus behaviour and the existing key map.
+- 1920×1080 stage, remote-only navigation, focus behaviour and the default key map (the colour-key
+  assignments are defaults and can be remapped).
 - Tizen app/input APIs, the browser mock (`tizen-mock.js`), the dev log, the weather widget and the
   render/platform probes.
 - The upstream MIT licence and the upstream documentation, except where this document explicitly

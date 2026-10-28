@@ -1,7 +1,7 @@
 # Arn0 Launcher — TV fork
 
 A fork of the Arn0 launcher (MIT) for a Samsung Tizen TV: a 1920×1080, remote-only web app.
-Current package: `TvLaunch01.Launcher` **0.6.25**.
+Current package: `TvLaunch01.Launcher` **0.6.27**.
 
 **Compatibility.** Upstream Arn0 targets **Tizen 6.5** (Q70B, Chromium 85). This fork was tested on
 a **QE65QN95A** (`T-NKM2DEUC-2310.0`, Tizen 6.0) with **Chromium 110.0.5415.0 / 120.0.6099.5**,
@@ -9,13 +9,25 @@ mounted at boot by `/usr/bin/chromium-efl-install` from
 `/opt/usr/apps/org.tizen.chromium-efl/res/chromium-efl.img` — the staged upgrade copied from
 `/opt/usr/apps/org.tizen.chromium-efl-upgrade/res/chromium-efl.img`.
 
+This fork is used on a **heavily debloated TV** (most Samsung preloads and telemetry services
+disabled). It does not depend on Smart Hub or any preloaded app: listing uses `tizen.application`,
+HDMI uses `tizen.tvwindow` / `systeminfo`, and everything else is local storage.
+
 ![The launcher home with weather under the clock and a Connected Devices row showing Windows, Linux and USB](docs/preview-home.png)
 
 ## Fork changes
 
-- **Connected Devices** — the Home row discovers live HDMI ports from `VIDEOSOURCE` and shows
-  unconfigured ones as `HDMI n`; Settings ▸ Connected Devices names, logos, opens, hides or
-  reorders them.
+- **Connected Devices** — Home shows the devices configured in `config.js` or Settings, like
+  upstream. Settings ▸ Connected Devices can opt in to **Detected outputs** (Hidden by default):
+  when Shown, live HDMI ports from `VIDEOSOURCE` are appended as `HDMI n` tiles and listed as
+  Detected entries you can adopt. Configured entries always win; hidden ones stay hidden.
+- **Colour keys** — Settings ▸ Colour keys remaps Red, Green, Yellow and Blue to **Default**,
+  **Do nothing**, an installed app (picked from All apps), a configured device, the screen saver or
+  Settings. Defaults are the original shortcuts (All apps, next wallpaper, runner game, Lab).
+  Bindings live in `localStorage`, so they survive restarts and in-place updates.
+- **Hidden runner game** — the yellow key opens the fork's runner easter egg when its personal
+  sprite/music files are present. They are gitignored and not part of the public repository; without
+  them the launcher shows a short notice instead of the game.
 - **Brand marks** — Apple, Wii U, Windows, Linux and USB added to the logo picker.
 - **Samsung Home shortcut** — Apps on Home can add a Samsung Home tile using the supplied logo;
   it launches `com.samsung.tv.csfs`, the same action as Settings ▸ Samsung Home.
@@ -36,13 +48,23 @@ mounted at boot by `/usr/bin/chromium-efl-install` from
 - **The 60 s fix** — the screen saver is a slideshow by default (All wallpapers), so a photo
   interval works even when Home holds a single photo.
 
+**Performance note.** The Dark fade / Crossfade transitions and the breathing zoom are the
+expensive part of the launcher: they keep the web engine busy **while Home is on screen**. That is
+the cost of the effect, not a background leak — opening an app or switching to a connected device
+sends the launcher to the background, where it idles (measured ~0 % CPU on the reference TV). Pick
+Instant if Home ever feels sluggish.
+
 No new Tizen privileges.
 
 ## Preview
 
 **Settings**
 
-![Main Settings with Connected Devices, Home Layout and Weather entries](docs/preview-settings.png)
+![Main Settings with Connected Devices, Colour keys, Home Layout and Weather entries](docs/preview-settings.png)
+
+**Colour keys**
+
+![Colour keys page with Red bound to an app, Yellow to a device and Blue set to Do nothing](docs/preview-colour-keys.png)
 
 **Home Layout**
 

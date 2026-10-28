@@ -17,7 +17,11 @@ window.LAUNCHER_CONFIG = {
         { id: 'NRi6kdBYJ0.AirPlayWebApp', label: 'AirPlay', brand: 'appletv' }
     ],
 
-    inputs: [],
+    inputs: [
+        { hdmi: 1, label: 'Nintendo Switch 2', brand: 'switch' },
+        { hdmi: 2, label: 'PlayStation 5', brand: 'playstation' },
+        { hdmi: 4, label: 'Xbox Series X', brand: 'xbox' }
+    ],
 
     // How an input tile switches the TV. See README "HDMI inputs".
     //   'switch+viewer'  set the TV source, then open Samsung's TV viewer (default)

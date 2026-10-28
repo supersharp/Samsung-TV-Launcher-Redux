@@ -63,7 +63,14 @@
                 showWeather: true
             },
             home: null,                 // [{ id, label, brand }] once edited; null = config.js apps
-            inputs: null                // [{ hdmi, label, brand, method, hidden }] once edited; null = config.js
+            inputs: null,               // [{ hdmi, label, brand, method, hidden }] once edited; null = config.js
+            detectedOutputs: false,     // also list HDMI ports the TV reports as connected
+            colourKeys: {               // remote colour keys; see Settings ▸ Colour keys
+                red: { type: 'default' },
+                green: { type: 'default' },
+                yellow: { type: 'default' },
+                blue: { type: 'default' }
+            }
         };
     }
 
@@ -86,6 +93,14 @@
                 merge(prefs.appearance, saved.appearance);
                 if (Array.isArray(saved.home) && saved.home.length) prefs.home = saved.home;
                 if (Array.isArray(saved.inputs)) prefs.inputs = saved.inputs;
+                if (typeof saved.detectedOutputs === 'boolean') prefs.detectedOutputs = saved.detectedOutputs;
+                if (saved.colourKeys) {
+                    ['red', 'green', 'yellow', 'blue'].forEach(function (name) {
+                        if (saved.colourKeys[name] && saved.colourKeys[name].type) {
+                            prefs.colourKeys[name] = saved.colourKeys[name];
+                        }
+                    });
+                }
             } else {
                 var legacy = localStorage.getItem(LEGACY_WALLPAPER_KEY);
                 if (legacy) prefs.wallpaper.photo = legacy;

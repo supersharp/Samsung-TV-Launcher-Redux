@@ -23,6 +23,7 @@
     };
 
     var inputListeners = [];
+    var pickAppCallback = null;   // Settings ▸ Colour keys: choose an app via All apps
     var SAMSUNG_HOME = 'com.samsung.tv.csfs';
 
     function samsungHomeItem() {
@@ -173,6 +174,12 @@
         return Prefs.get().inputs || cfg.inputs || [];
     }
 
+    // Opt-in: also show HDMI ports the TV reports as connected but that are not configured.
+    // Off by default, so Home matches the explicit config/Settings list (the original behaviour).
+    function detectedEnabled() {
+        return Prefs.get().detectedOutputs === true;
+    }
+
     /*
      * Everything the second row should show: the configured consoles, then any HDMI port
      * the TV reports as connected that has not been configured yet. Discovery is what makes
@@ -181,6 +188,7 @@
      */
     function homeInputs() {
         var list = inputs();
+        if (!detectedEnabled()) return list;
         var used = {};
         list.forEach(function (i) { used[i.hdmi] = true; });
         var discovered = Object.keys(state.hdmi)
@@ -284,8 +292,15 @@
 
     function refreshInputStatus() {
         return Inputs.hdmiStatus().then(function (status) {
-            var before = homeInputsSig();
             state.hdmi = status;
+            // Discovered tiles only exist when the opt-in is on. With it off, just repaint
+            // the dots on the configured tiles (the original behaviour).
+            if (!detectedEnabled()) {
+                applyInputStatus();
+                inputListeners.forEach(function (fn) { fn(); });
+                return;
+            }
+            var before = homeInputsSig();
             // Rebuild only when the set of ports changed: a green dot does not need new tiles,
             // and rebuilding on every poll would throw away the focused tile.
             if (homeInputsSig() !== before) renderHome();
@@ -303,6 +318,12 @@
         var items = Apps.allSorted(state.apps, state.showEverything);
         items.forEach(function (item) { grid.appendChild(appTile(item)); });
         $('all-count').textContent = items.length + ' apps';
+    }
+
+    // Open All apps in pick mode; the callback receives the chosen item.
+    function pickApp(cb) {
+        pickAppCallback = cb;
+        UI.show('all');
     }
 
     function renderLab() {
@@ -397,8 +418,39 @@
         if (w) UI.toast(w.title + (w.credit ? ' · ' + w.credit : ''));
     }
 
-    // Colour keys are hidden shortcuts; everything is also reachable from Settings.
+    // Colour keys are hidden shortcuts; Settings ▸ Colour keys can remap them.
+    function colourName(k) {
+        if (k === KEY.RED || k === KEY.R) return 'red';
+        if (k === KEY.GREEN || k === KEY.G) return 'green';
+        if (k === KEY.YELLOW || k === KEY.Y) return 'yellow';
+        if (k === KEY.BLUE || k === KEY.B) return 'blue';
+        return null;
+    }
+
+    function runColourBinding(binding) {
+        if (!binding || binding.type === 'default') return false;
+        if (binding.type === 'none') return true;
+        if (binding.type === 'app') {
+            launchApp({ id: binding.id, label: binding.label || binding.id });
+            return true;
+        }
+        if (binding.type === 'input') {
+            var item = inputs().find(function (i) { return i.hdmi === binding.hdmi; });
+            if (item) openInput(item);
+            else UI.toast('HDMI ' + binding.hdmi + ' is not configured');
+            return true;
+        }
+        if (binding.type === 'screensaver') { Screensaver.open(); return true; }
+        if (binding.type === 'settings') { UI.show('settings'); return true; }
+        return true;
+    }
+
     function colourKey(k, view) {
+        var name = colourName(k);
+        if (name) {
+            var binding = (Prefs.get().colourKeys || {})[name];
+            if (binding && binding.type && binding.type !== 'default') return runColourBinding(binding);
+        }
         if (k === KEY.RED || k === KEY.R) {
             UI.show(view === 'all' ? 'home' : 'all');
         } else if (k === KEY.GREEN || k === KEY.G) {
@@ -410,6 +462,10 @@
                 state.showEverything = !state.showEverything;
                 UI.show('all', { back: true });
             } else if (view === 'home' && window.RunnerGame) {
+                if (RunnerGame.assetsReady && !RunnerGame.assetsReady()) {
+                    UI.toast('Game photos are not in this build');
+                    return true;
+                }
                 RunnerGame.open();
             } else return false;
         } else {
@@ -596,9 +652,27 @@
         UI.register('all', {
             el: $('all'),
             rows: function () { return UI.chunk(UI.children($('all-grid')), GRID_COLS); },
-            onShow: renderAll,
-            activate: launchApp,
-            hints: [['OK', 'Open'], ['Back', 'Home']]
+            onShow: function () {
+                renderAll();
+                var title = $('all-title');
+                if (title) title.textContent = pickAppCallback ? 'Choose an app' : 'All apps';
+            },
+            onBack: function () {
+                pickAppCallback = null;
+                return false;
+            },
+            activate: function (item) {
+                if (pickAppCallback) {
+                    var cb = pickAppCallback;
+                    pickAppCallback = null;
+                    cb(item);
+                    return;
+                }
+                launchApp(item);
+            },
+            hints: function () {
+                return pickAppCallback ? [['OK', 'Choose'], ['Back', 'Cancel']] : [['OK', 'Open'], ['Back', 'Home']];
+            }
         });
 
         UI.register('lab', {
@@ -652,9 +726,9 @@
         setTimeout(loadApps, cached ? 2000 : 0);
         refreshInputStatus();
         // A console is often plugged in or powered on after the launcher started, and the TV
-        // only reports it through VIDEOSOURCE. Poll while Home is on screen so the row keeps up.
+        // only reports it through VIDEOSOURCE. Poll only while the opt-in is on.
         setInterval(function () {
-            if (!document.hidden && UI.isVisible('home')) refreshInputStatus();
+            if (detectedEnabled() && !document.hidden && UI.isVisible('home')) refreshInputStatus();
         }, 30 * 1000);
         log('Launcher started');
     }
@@ -666,6 +740,7 @@
         setHomeItems: setHomeItems,
         inputs: inputs,
         homeInputs: homeInputs,
+        detectedEnabled: detectedEnabled,
         detectedInputs: function () {
             return homeInputs().filter(function (i) { return i.auto; });
         },
@@ -674,6 +749,8 @@
         // An HDMI input shown inside the launcher: no screen saver over it.
         tvMode: function () { return state.tvMode; },
         refreshInputStatus: refreshInputStatus,
+        renderHome: renderHome,
+        pickApp: pickApp,
         renderLab: renderLab,
         applyLayout: applyLayout,
         updateClock: updateClock,

@@ -265,6 +265,13 @@
         open: function (startNow) {
             UI.show('runner-game');
             if (startNow) start();
+        },
+        // False when the personal sprites are not in this build (they are gitignored).
+        assetsReady: function () {
+            if (imageError) return false;
+            if (runner.complete && runner.naturalWidth === 0) return false;
+            if (obstacle.complete && obstacle.naturalWidth === 0) return false;
+            return true;
         }
     };
 })();
