@@ -1,4 +1,4 @@
-# Arn0 Launcher — TV fork
+# Samsung TV Launcher Redux
 
 A fork of the Arn0 launcher (MIT) for a Samsung Tizen TV: a 1920×1080, remote-only web app.
 Current package: `TvLaunch01.Launcher` **0.6.27**.
